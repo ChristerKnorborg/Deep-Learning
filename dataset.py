@@ -1,5 +1,6 @@
 import os
 import os
+from typing import Any
 import requests
 import zipfile
 from pycocotools.coco import COCO
@@ -30,6 +31,7 @@ class DataSet:
         self._ensure_data_exists_or_download()
 
         self.coco = COCO(self.ann_file)
+
 
 
 
@@ -116,7 +118,7 @@ class DataSet:
         else:
             category_ids = self.coco.getCatIds(catNms=categories)
         
-        img_ids = self.coco.getImgIds(catIds=category_ids)
+        img_ids = self.coco.getImgIds(catIds=category_ids) 
         
         data = []
         for img_id in img_ids:
@@ -127,12 +129,18 @@ class DataSet:
             data.append((img_path, anns))
         
         return data
+    
+
+    def __get_image__(self, __name: str) -> Any:
+        pass
 
 # Example of usage:
 coco_data = DataSet(DataSetType.TRAIN)
 print(coco_data.get_categories())
-categories = ['person', 'car']
+categories = ['person']
 data = coco_data.get_images_and_annotations(categories)
-for img_path, anns in data[0]:
+for img_path, anns in data:
     print(img_path)
-    print(anns)
+    #print(anns)
+
+    
