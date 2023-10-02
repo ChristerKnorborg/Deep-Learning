@@ -4,6 +4,9 @@ import torchvision.models as models
 import numpy as np
 
 class Yolo_v1(nn.Module):
+
+    #TODO figure out how to use the encoder in the beginning(transfer learning)
+    #TODO figure out how to couple together images and labels
     
     def __init__(self, input_size):
         super(Yolo_v1, self).__init__() 
