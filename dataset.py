@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from typing import Any
 import requests
@@ -9,8 +10,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from torch.utils.data import Dataset
+
 
 from enum import Enum
+
+import torch
+from PIL import Image
 
 # Define the DataSetType enum
 
@@ -21,7 +27,7 @@ class DataSetType(Enum):
     TEST = "./data/test2017", "./data/labels/annotations/instances_test2017.json"
 
 
-class DataSet:
+class DataSetCoco(Dataset):
 
     def __init__(self, datatype: DataSetType):
         """Initializes the dataset. Downloads and extracts data if needed.
@@ -123,6 +129,32 @@ class DataSet:
     def __get_image__(self, __name: str) -> Any:
         pass
 
+    def __len__(self):
+        """Returns the total number of samples in the dataset."""
+        return len(self.coco.getImgIds())
+    
+    def __getitem__(self, idx):
+        """Returns the data sample (image and annotations) for a given index."""
+        
+        imgIds = self.coco.getImgIds()
+        imgId = imgIds[idx]
+        
+        img_info = self.coco.loadImgs([imgId])[0]
+        img_path = os.path.join(self.img_dir, img_info['file_name'])
+        
+        # Convert image to tensor
+        image = Image.open(img_path).convert("RGB")
+        image_tensor = torch.tensor(np.array(image), dtype=torch.float32).permute(2, 0, 1) / 255.0  # Normalize to [0, 1]
+        
+        annIds = self.coco.getAnnIds(imgIds=imgId)
+        anns = self.coco.loadAnns(annIds)
+        
+        # Convert annotations to tensor (for simplicity, let's only consider bounding boxes)
+        bboxes = [ann['bbox'] for ann in anns]
+        bboxes_tensor = torch.tensor(bboxes, dtype=torch.float32)
+        
+        return image_tensor, bboxes_tensor
+
     def show_random_image_with_bboxes(self):
         """Displays a random image from the dataset with its bounding boxes."""
 
@@ -154,9 +186,31 @@ class DataSet:
         plt.show()
 
 
+    def download_person_images(self):
+        """
+        Downloads all images with the category "person" into a new folder 'persontrain2017'.
+        """
+        # Step 1: Identify all images with the category "person".
+        category = 'person'
+        person_img_data = self.get_images_and_annotations([category])
+
+        # Step 2: Prepare the new directory.
+        person_dir = './data/persontrain2017'
+        if not os.path.exists(person_dir):
+            os.makedirs(person_dir)
+
+        # Step 3: Copy images to the new directory.
+        for img_path, _ in person_img_data:
+            shutil.copy2(img_path, person_dir)
+
+        print(f'Images with category "person" have been copied to {person_dir}')
+
+
 # Example of usage:
-coco_data = DataSet(DataSetType.TRAIN)
-coco_data.show_random_image_with_bboxes()
+coco_data = DataSetCoco(DataSetType.TRAIN)
+coco_data.download_person_images()
+
+#coco_data.show_random_image_with_bboxes()
 # print(coco_data.get_categories())
 # categories = ['person']
 # data = coco_data.get_images_and_annotations(categories)
