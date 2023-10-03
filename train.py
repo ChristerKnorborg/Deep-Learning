@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import copy
+from dataset import TRAIN, VALIDATION
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # Use GPU if available
 
@@ -28,8 +29,8 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
         
-        for phase in ['train', 'val']:
-            if phase == 'train':
+        for phase in [TRAIN, VALIDATION]:
+            if phase == TRAIN:
                 scheduler.step()
                 model.train()
             else:
@@ -42,7 +43,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
             
             dataloaders, image_datasets = process_data()
 
-            dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+            dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(DEVICE) 
@@ -50,13 +51,13 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                 
                 optimizer.zero_grad()
                 
-                with torch.set_grad_enabled(phase == 'train'):
+                with torch.set_grad_enabled(phase == TRAIN):
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
                     
                     _, preds = torch.max(outputs, 1)
                     
-                    if phase == 'train':
+                    if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
                         optimizer.step()
                 
@@ -72,7 +73,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
             # Deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
+            if phase == VALIDATION and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
     

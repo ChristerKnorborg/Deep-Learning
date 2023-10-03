@@ -18,9 +18,12 @@ from enum import Enum
 import torch
 from PIL import Image
 
+TRAIN = "train2017"
+VALIDATION = "val2017"
+
+
+
 # Define the DataSetType enum
-
-
 class DataSetType(Enum):
     TRAIN = "./data/train2017", "./data/labels/annotations/instances_train2017.json"
     VALIDATION = "./data/val2017", "./data/labels/annotations/instances_val2017.json"
