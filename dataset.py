@@ -132,14 +132,16 @@ class DataSet:
 
         img = self.coco.loadImgs([imgId])[0]
 
-        # NEED THE EXTRA TRAIN PATH, because the trian folder is in a train folder
         I = plt.imread(os.path.join(
-            self.img_dir+"/train2017", img["file_name"]))
+            self.img_dir, img["file_name"]))  # "file_name is property from object"
 
         # Load and display instance annotations
         plt.imshow(I)
         annIds = self.coco.getAnnIds(imgIds=img["id"])
         anns = self.coco.loadAnns(annIds)
+        print("-----")
+        print(anns)
+        print("-----")
         for ann in anns:
             if 'bbox' in ann:
                 bbox = ann['bbox']
