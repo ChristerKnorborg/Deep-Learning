@@ -207,8 +207,7 @@ class DataSetCoco(Dataset):
 
 
 # Example of usage:
-coco_data = DataSetCoco(DataSetType.TRAIN)
-coco_data.download_person_images()
+coco_data = DataSetCoco(DataSetType.VALIDATION)
 
 #coco_data.show_random_image_with_bboxes()
 # print(coco_data.get_categories())

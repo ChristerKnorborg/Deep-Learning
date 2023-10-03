@@ -79,4 +79,28 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
     return model
         
 
+model = Yolo_v1()
+
+# Freeze all layers (i.e., disable training)
+for param in model.parameters():
+    param.requires_grad = False
+
+# Unfreeze final layer (named fc)
+for param in model.fc.parameters():
+    param.requires_grad = True
+
+# Put the model on the GPU
+model = model.to(DEVICE)
+
+# Loss function
+criterion = nn.CrossEntropyLoss()
+
+# Observe that all parameters are being optimized
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+# Decay LR by a factor of 0.1 every 7 epochs
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+
+model = train(model, criterion, optimizer, exp_lr_scheduler, num_epochs=5)
+
 

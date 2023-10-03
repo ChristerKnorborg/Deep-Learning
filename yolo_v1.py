@@ -8,7 +8,7 @@ class Yolo_v1(nn.Module):
     #TODO figure out how to use the encoder in the beginning(transfer learning)
     #TODO figure out how to couple together images and labels
     
-    def __init__(self, input_size):
+    def __init__(self):
         super(Yolo_v1, self).__init__() 
 
         resnet_layers = models.resnet50(pretrained=True)
@@ -20,7 +20,7 @@ class Yolo_v1(nn.Module):
         print(self.encoder)
 
         # Add decoder layers to the network
-        self.decoder = nn.Sequential(
+        self.fc = nn.Sequential(
             # Assuming output from resnet encoder has a depth of 2048
             nn.ConvTranspose2d(2048, 1024, kernel_size=2, stride=2),
             nn.ReLU(inplace=True),
@@ -36,11 +36,12 @@ class Yolo_v1(nn.Module):
 
             # Let's assume we want to output 3 channels for RGB
             nn.Conv2d(128, 3, kernel_size=1)
+
         )
 
         # Print the decoder architecture
         print("Decoder: \n")
-        print(self.decoder)
+        print(self.fc)
 
         
     def forward(self, x):
@@ -48,12 +49,10 @@ class Yolo_v1(nn.Module):
         x = self.encoder(x)
 
         # Run data through decoder
-        output = self.decoder(x)
+        output = self.fc(x)
 
         return output
     
 
-# Try out your network
-input_size = 224
-model = Yolo_v1(input_size)
+
 
