@@ -22,3 +22,4 @@ https://machinelearningspace.com/coco-dataset-a-step-by-step-guide-to-loading-an
 # things that will probably not work even know train compiles
 
 1. DataSetCoco __getitem__ is from the robot and will need to be adjusted accordingly
+2. missing classes in data_preproceess.py
