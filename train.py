@@ -7,13 +7,12 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models 
 from dataset import DataSetCoco, DataSetType
 from torch.optim import lr_scheduler
+from data_preprocess import process_data
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
 import copy
-
-
 
 
 def train(model, criterion, optimizer, scheduler, num_epochs = 25):
@@ -32,33 +31,9 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
             running_loss = 0.0
             running_corrects = 0
 
-            train_dataset = DataSetCoco(DataSetType.TRAIN)
-            train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
-
-
-
-            data_transforms = {
-            'train': transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(0.5),
-                transforms.ColorJitter(brightness=0.1),
-                transforms.RandomRotation(degrees=10),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ]),
-            'val': transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ]),
-            }
-            data_dir = 'data/persontrain2017'
-            image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
-                                          data_transforms[x])
-                  for x in ['train', 'val']}
-            dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True, num_workers=4) for x in ['train', 'val']}
             
+            dataloaders = process_data()
+
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
                 labels = labels.to(device)
