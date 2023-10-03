@@ -44,5 +44,5 @@ def process_data():
     
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True, num_workers=4) for x in ['train', 'val']}
 
-    return dataloaders
+    return dataloaders, image_datasets
             

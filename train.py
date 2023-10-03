@@ -14,8 +14,15 @@ import time
 import os
 import copy
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # Use GPU if available
+
+
 
 def train(model, criterion, optimizer, scheduler, num_epochs = 25):
+
+
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -27,16 +34,19 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                 model.train()
             else:
                 model.eval()
-            
+
+            # Initialize to 0. E.g. running_corrects = 0 will not work due to type mismatch in double
+            running_corrects: torch.Tensor = torch.tensor(0) 
             running_loss = 0.0
-            running_corrects = 0
 
             
-            dataloaders = process_data()
+            dataloaders, image_datasets = process_data()
+
+            dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
 
             for inputs, labels in dataloaders[phase]:
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                inputs = inputs.to(DEVICE) 
+                labels = labels.to(DEVICE)
                 
                 optimizer.zero_grad()
                 
@@ -53,6 +63,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
+            
             
 
             epoch_loss = running_loss / dataset_sizes[phase]

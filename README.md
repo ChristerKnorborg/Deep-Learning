@@ -15,3 +15,10 @@ https://machinelearningspace.com/coco-dataset-a-step-by-step-guide-to-loading-an
 3. [] Setup dataloaders from tø week 5 part 4 (follow instructions)
 4. [] make train and validation function
 5.
+
+
+
+
+# things that will probably not work even know train compiles
+
+1. DataSetCoco __getitem__ is from the robot and will need to be adjusted accordingly
