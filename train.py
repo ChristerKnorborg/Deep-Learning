@@ -19,8 +19,13 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # Use GP
 
 
 
+
+dataloaders, image_datasets = process_data()
+dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
+
 def train(model, criterion, optimizer, scheduler, num_epochs = 25):
 
+    
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -31,7 +36,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
         
         for phase in [TRAIN, VALIDATION]:
             if phase == TRAIN:
-                scheduler.step()
+                #scheduler.step()
                 model.train()
             else:
                 model.eval()
@@ -40,16 +45,20 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
             running_corrects: torch.Tensor = torch.tensor(0) 
             running_loss = 0.0
 
-            
-            dataloaders, image_datasets = process_data()
-
-            dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
-
+            print("Phase: ", len(dataloaders[phase]))
+            print("Phase:", dataloaders[phase])
+            i = 0
             for inputs, labels in dataloaders[phase]:
+                i = i + 1
+                if i == 10:
+                    break
+                
+                print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
+                print(labels.shape)  # This should print [batch_size] if you're doing classification.
                 inputs = inputs.to(DEVICE) 
                 labels = labels.to(DEVICE)
                 
-                optimizer.zero_grad()
+                #optimizer.zero_grad()
                 
                 with torch.set_grad_enabled(phase == TRAIN):
                     outputs = model(inputs)
@@ -59,7 +68,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                     
                     if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
-                        optimizer.step()
+                        #optimizer.step()
                 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
@@ -95,7 +104,6 @@ model = model.to(DEVICE)
 
 # Loss function
 criterion = nn.CrossEntropyLoss()
-
 # Observe that all parameters are being optimized
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 

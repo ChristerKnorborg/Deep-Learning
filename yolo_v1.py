@@ -16,32 +16,20 @@ class Yolo_v1(nn.Module):
         self.encoder = encoder.eval() # Disable training as encoder is already trained
 
         # Print the encoder architecture
-        print("Encoder: \n")
-        print(self.encoder)
+        ''' print("Encoder: \n")
+        print(self.encoder)'''
 
-        # Add decoder layers to the network
         self.fc = nn.Sequential(
-            # Assuming output from resnet encoder has a depth of 2048
-            nn.ConvTranspose2d(2048, 1024, kernel_size=2, stride=2),
+            nn.Flatten(),
+            nn.Linear(2048, 512),
             nn.ReLU(inplace=True),
-
-            nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2),
-            nn.ReLU(inplace=True),
-
-            nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2),
-            nn.ReLU(inplace=True),
-
-            nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
-            nn.ReLU(inplace=True),
-
-            # Let's assume we want to output 3 channels for RGB
-            nn.Conv2d(128, 3, kernel_size=1)
-
+            nn.Dropout(0.5), # Optional: for regularization
+            nn.Linear(512, 1) # 1 is the number of classes
         )
 
         # Print the decoder architecture
-        print("Decoder: \n")
-        print(self.fc)
+        '''print("Decoder: \n")
+        print(self.fc)'''
 
         
     def forward(self, x):

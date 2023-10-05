@@ -18,8 +18,8 @@ from enum import Enum
 import torch
 from PIL import Image
 
-TRAIN = "train2017"
-VALIDATION = "val2017"
+TRAIN = "./data/train2017"
+VALIDATION = "./data/val2017"
 
 
 
@@ -32,7 +32,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType):
+    def __init__(self, datatype: DataSetType, transform = None):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -40,11 +40,10 @@ class DataSetCoco(Dataset):
         - ann_file (str): Path to the annotation file.
         """
         self.img_dir, self.ann_file = datatype.value
-
-        # Ensure data exists or download it
-        self._ensure_data_exists_or_download()
-
+        self._ensure_data_exists_or_download() # Ensure data exists or download it
         self.coco = COCO(self.ann_file)
+        self.transform = transform
+        self.ids = list(self.coco.imgs.keys())
 
     def _ensure_data_exists_or_download(self):
         """Downloads and extracts the COCO dataset into the data directory if it doesn't already exist."""
@@ -136,28 +135,28 @@ class DataSetCoco(Dataset):
         """Returns the total number of samples in the dataset."""
         return len(self.coco.getImgIds())
     
-    def __getitem__(self, idx):
-        """Returns the data sample (image and annotations) for a given index."""
-        
-        imgIds = self.coco.getImgIds()
-        imgId = imgIds[idx]
-        
-        img_info = self.coco.loadImgs([imgId])[0]
-        img_path = os.path.join(self.img_dir, img_info['file_name'])
-        
-        # Convert image to tensor
-        image = Image.open(img_path).convert("RGB")
-        image_tensor = torch.tensor(np.array(image), dtype=torch.float32).permute(2, 0, 1) / 255.0  # Normalize to [0, 1]
-        
-        annIds = self.coco.getAnnIds(imgIds=imgId)
-        anns = self.coco.loadAnns(annIds)
-        
-        # Convert annotations to tensor (for simplicity, let's only consider bounding boxes)
-        bboxes = [ann['bbox'] for ann in anns]
-        bboxes_tensor = torch.tensor(bboxes, dtype=torch.float32)
-        
-        return image_tensor, bboxes_tensor
+    
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
 
+        Returns:
+            tuple: Tuple (image, target). target is the object returned by ``coco.loadAnns``.
+        """
+        coco = self.coco
+        img_id = self.ids[index]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        target = coco.loadAnns(ann_ids)
+
+        path = coco.loadImgs(img_id)[0]['file_name']
+
+        img = Image.open(os.path.join(self.img_dir, path)).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, target
+    
     def show_random_image_with_bboxes(self):
         """Displays a random image from the dataset with its bounding boxes."""
 
@@ -210,7 +209,7 @@ class DataSetCoco(Dataset):
 
 
 # Example of usage:
-coco_data = DataSetCoco(DataSetType.VALIDATION)
+#coco_data = DataSetCoco(DataSetType.TRAIN)
 
 #coco_data.show_random_image_with_bboxes()
 # print(coco_data.get_categories())
