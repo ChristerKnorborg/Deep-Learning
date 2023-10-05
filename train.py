@@ -43,11 +43,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs=25):
             running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
-            i = 0
             for inputs, labels in dataloaders[phase]:
-                i = i + 1
-                if i == 10:
-                    break
 
                 inputs = inputs.to(DEVICE)
                 labels = labels.to(DEVICE)
