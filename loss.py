@@ -8,7 +8,7 @@ import torch.nn as nn
 class YOLOLoss(nn.Module):
     def __init__(self, S=7, B=2, C=1):
         super(YOLOLoss, self).__init__()
-        self.S = S # grid size
+        self.S = S # grid size (SxS)
         self.B = B # number of bounding boxes per grid cell
         self.C = C # number of classes
 

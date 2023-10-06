@@ -45,16 +45,18 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
             running_corrects: torch.Tensor = torch.tensor(0) 
             running_loss = 0.0
 
+            i = 0
             for inputs, labels in dataloaders[phase]:
-
-
+                i += 1
+                if i == 10:
+                    break
                 
                 print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
-                print(labels.shape)  # This should print [batch_size] if you're doing classification.
+                print(labels.shape)  # This should print [batch_size] if doing classification.
                 inputs = inputs.to(DEVICE) 
                 labels = labels.to(DEVICE)
                 
-                #optimizer.zero_grad()
+                optimizer.zero_grad()
                 
                 with torch.set_grad_enabled(phase == TRAIN):
                     outputs = model(inputs)
@@ -64,7 +66,7 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                     
                     if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
-                        #optimizer.step()
+                        optimizer.step()
                 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
@@ -86,14 +88,6 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
         
 
 model = Yolo_v1()
-
-# Freeze all layers (i.e., disable training)
-for param in model.parameters():
-    param.requires_grad = False
-
-# Unfreeze final layer (named fc)
-for param in model.fc.parameters():
-    param.requires_grad = True
 
 # Put the model on the GPU
 model = model.to(DEVICE)

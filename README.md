@@ -14,7 +14,13 @@ https://machinelearningspace.com/coco-dataset-a-step-by-step-guide-to-loading-an
 2. [] Rework decoder / our part of the model. Figure out to use real activation functions and stuff like that
 3. [] Setup dataloaders from tø week 5 part 4 (follow instructions)
 4. [] make train and validation function
-5.
+
+
+
+# Small TODO in train
+1. [] Check if pictures are always the same in the epoch (aka dataloader)
+2. [] Find out what we predict and the labels
+3. [] 
 
 
 
