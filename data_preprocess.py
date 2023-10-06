@@ -25,6 +25,7 @@ def process_data():
             # First arguments for inital trainings
             # transforms.Resize(256),
             # transforms.CenterCrop(256),
+            
             transforms.RandomResizedCrop(256),
             # Horizontally flip the image with probability 0.5
             transforms.RandomHorizontalFlip(0.5),

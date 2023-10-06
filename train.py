@@ -19,14 +19,15 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
                       else "cpu")  # Use GPU if available
 
 
-dataloaders, image_datasets = process_data()
-dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
 
 def train(model, criterion, optimizer, scheduler, num_epochs=25):
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+
+    dataloaders, image_datasets = process_data()
+    dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -92,17 +93,14 @@ def train(model, criterion, optimizer, scheduler, num_epochs=25):
     return model
 
 
+
+
 model = Yolo_v1()
+model = model.to(DEVICE) # Use GPU if available
 
-# Put the model on the GPU
-model = model.to(DEVICE)
-
-# Loss function
-criterion = nn.CrossEntropyLoss()
-# Observe that all parameters are being optimized
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-
-# Decay LR by a factor of 0.1 every 7 epochs
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+criterion = nn.CrossEntropyLoss() # Loss function
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9) # Observe that all parameters are being optimized
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
 
 model = train(model, criterion, optimizer, exp_lr_scheduler, num_epochs=5)
+
