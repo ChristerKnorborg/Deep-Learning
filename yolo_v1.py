@@ -27,21 +27,18 @@ class Yolo_v1(nn.Module):
         self.B = 2  # Number of bounding boxes per grid cell
         self.C = 1  # Number of classes
 
+        # From the paper: S * S * (B * 5 + C), where 5 is the number of parameters in each bounding box (x, y, w, h, confidence)
+        prediction_tensor = self.S**2 * (self.B*5 + self.C) # 7*7*(2*5) = 490.
+
         self.fc = nn.Sequential(
             nn.Flatten(),
-            self._make_linear_with_xavier(2048, 512),
-            nn.Tanh(),
-            self._make_linear_with_xavier(512, 1),
-            nn.Sigmoid()
+            self._make_linear_with_xavier(2048, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+            nn.LeakyReLU(0.1), # 0.1 is used in the paper
+            # nn.Dropout(0.5), # Optional: for regularization
+            self._make_linear_with_xavier(512, prediction_tensor),
+            nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
 
-    def _make_linear_with_xavier(self, in_features, out_features):
-        layer = nn.Linear(in_features, out_features)
-        init.xavier_uniform_(layer.weight)
-        return layer
-        # Print the decoder architecture
-        '''print("Decoder: \n")
-        print(self.fc)'''
 
 
         # Freeze the pretained encoder weights
@@ -68,8 +65,12 @@ class Yolo_v1(nn.Module):
 
 
 
+    def _make_linear_with_xavier(self, in_features, out_features):
+        layer = nn.Linear(in_features, out_features)
+        init.xavier_uniform_(layer.weight)
+        return layer
+        # Print the decoder architecture
+        '''print("Decoder: \n")
+        print(self.fc)'''
 
 
-
-
-Yolo_v1()
