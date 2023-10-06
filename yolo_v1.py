@@ -2,14 +2,16 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import numpy as np
+import torch.nn.init as init
+
 
 class Yolo_v1(nn.Module):
 
-    #TODO figure out how to use the encoder in the beginning(transfer learning)
-    #TODO figure out how to couple together images and labels
-    
+    # TODO figure out how to use the encoder in the beginning(transfer learning)
+    # TODO figure out how to couple together images and labels
+
     def __init__(self):
-        super(Yolo_v1, self).__init__() 
+        super(Yolo_v1, self).__init__()
 
         # Our encoder is a pretrained ResNet-50
         resnet_layers = models.resnet50(pretrained=True)
@@ -27,15 +29,16 @@ class Yolo_v1(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(2048, 512), # 2048 is the number of features output by the resnet encoder.
-                                  # 512 is the number of features we want
-            nn.LeakyReLU(0.1), # 0.1 is used in the paper
-            # nn.Dropout(0.5), # Optional: for regularization
-            nn.Linear(512, self.S**2 * (self.B*5)), # Output layer. S * S ^(B * 5 + C). 7*7*(2*5) = 490. 
-                                                    # Where 5 is the number of parameters in each bounding box (x, y, w, h, confidence)
-            nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
+            self._make_linear_with_xavier(2048, 512),
+            nn.Tanh(),
+            self._make_linear_with_xavier(512, 1),
+            nn.Sigmoid()
         )
 
+    def _make_linear_with_xavier(self, in_features, out_features):
+        layer = nn.Linear(in_features, out_features)
+        init.xavier_uniform_(layer.weight)
+        return layer
         # Print the decoder architecture
         '''print("Decoder: \n")
         print(self.fc)'''
@@ -58,8 +61,11 @@ class Yolo_v1(nn.Module):
         # Run data through decoder
         output = self.fc(x)
 
+        print("Output shape:", output.shape)
+        print("Output values:", output)
+
         return output
-    
+
 
 
 

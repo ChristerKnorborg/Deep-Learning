@@ -4,7 +4,7 @@ import torch.nn as nn
 import torchvision.models as models
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms, models 
+from torchvision import datasets, transforms, models
 from dataset import DataSetCoco, DataSetType
 from torch.optim import lr_scheduler
 from data_preprocess import process_data
@@ -15,17 +15,15 @@ import os
 import copy
 from dataset import TRAIN, VALIDATION
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # Use GPU if available
-
-
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
+                      else "cpu")  # Use GPU if available
 
 
 dataloaders, image_datasets = process_data()
 dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
-def train(model, criterion, optimizer, scheduler, num_epochs = 25):
 
-    
+def train(model, criterion, optimizer, scheduler, num_epochs=25):
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -33,16 +31,16 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
-        
+
         for phase in [TRAIN, VALIDATION]:
             if phase == TRAIN:
-                #scheduler.step()
+                scheduler.step()
                 model.train()
             else:
                 model.eval()
 
             # Initialize to 0. E.g. running_corrects = 0 will not work due to type mismatch in double
-            running_corrects: torch.Tensor = torch.tensor(0) 
+            running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
             i = 0
@@ -61,31 +59,38 @@ def train(model, criterion, optimizer, scheduler, num_epochs = 25):
                 with torch.set_grad_enabled(phase == TRAIN):
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
-                    
+                    # print(loss)
+                    # print("-------")
+
                     _, preds = torch.max(outputs, 1)
-                    
+
                     if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
                         optimizer.step()
                 
                 # statistics
+
+                # print("-------")
+                # print(preds)
+                # print(labels.data)
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-            
-            
 
             epoch_loss = running_loss / dataset_sizes[phase]
+            print(running_loss)
+            print(dataset_sizes[phase])
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
-            
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                phase, epoch_loss, epoch_acc))
 
             # Deep copy the model
             if phase == VALIDATION and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-    
+
     return model
-        
+
 
 model = Yolo_v1()
 
@@ -101,5 +106,3 @@ optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
 model = train(model, criterion, optimizer, exp_lr_scheduler, num_epochs=5)
-
-

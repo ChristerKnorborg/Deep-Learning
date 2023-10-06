@@ -4,7 +4,7 @@ import torch.nn as nn
 import torchvision.models as models
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms, models 
+from torchvision import datasets, transforms, models
 from dataset import DataSetCoco, DataSetType
 from torch.optim import lr_scheduler
 import numpy as np
@@ -17,45 +17,44 @@ import json
 
 from dataset import TRAIN, VALIDATION
 
+
 def process_data():
 
     data_transforms = {
         TRAIN: transforms.Compose([
             # First arguments for inital trainings
-            #transforms.Resize(256),
-            #transforms.CenterCrop(256), 
-
+            # transforms.Resize(256),
+            # transforms.CenterCrop(256),
             transforms.RandomResizedCrop(256),
-            transforms.RandomHorizontalFlip(0.5),   # Horizontally flip the image with probability 0.5
-            transforms.ColorJitter(brightness=0.1), # Randomly change the brightness of the image by 10%
-            transforms.RandomRotation(degrees=10),  # Randomly rotate images in the range (degrees, 0 to 180)
+            # Horizontally flip the image with probability 0.5
+            transforms.RandomHorizontalFlip(0.5),
+            # Randomly change the brightness of the image by 10%
+            transforms.ColorJitter(brightness=0.1),
+            # Randomly rotate images in the range (degrees, 0 to 180)
+            transforms.RandomRotation(degrees=10),
             transforms.ToTensor(),
-            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         VALIDATION: transforms.Compose([
             transforms.Resize(256),
-            transforms.CenterCrop(256), 
+            transforms.CenterCrop(256),
             transforms.ToTensor()
-            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
 
     # Only use 'person' directory for the ImageFolder (As we do not need the other classes)
     image_datasets = {x: datasets.ImageFolder(x, data_transforms[x])
-                    for x in [TRAIN, VALIDATION]}
+                      for x in [TRAIN, VALIDATION]}
 
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True)
-                for x in [TRAIN, VALIDATION]}
-
-
+                   for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification
     print("Classes in TRAIN dataset:", image_datasets[TRAIN].classes)
     print("Classes in VALIDATION dataset:", image_datasets[VALIDATION].classes)
 
     return dataloaders, image_datasets
-
-
 
 
 def move_images_with_persons_to_person_dir(coco_dataset):
@@ -73,10 +72,12 @@ def move_images_with_persons_to_person_dir(coco_dataset):
         data = json.load(f)
 
     # Extract category IDs for the 'person' class
-    person_cat_id = [cat['id'] for cat in data['categories'] if cat['name'] == 'person'][0]
+    person_cat_id = [cat['id']
+                     for cat in data['categories'] if cat['name'] == 'person'][0]
 
     # Get image ids of images containing persons
-    img_ids_with_persons = [ann['image_id'] for ann in data['annotations'] if ann['category_id'] == person_cat_id]
+    img_ids_with_persons = [ann['image_id']
+                            for ann in data['annotations'] if ann['category_id'] == person_cat_id]
 
     # Deduplicate the image IDs
     img_ids_with_persons = list(set(img_ids_with_persons))
@@ -94,9 +95,10 @@ def move_images_with_persons_to_person_dir(coco_dataset):
     print(f"Done moving images with persons for dataset!")
 
 
+# coco_set_val = DataSetCoco(DataSetType.VALIDATION)
+# move_images_with_persons_to_person_dir(coco_set_val)
+# coco_set_val = DataSetCoco(DataSetType.VALIDATION)
+# move_images_with_persons_to_person_dir(coco_set_val)
 
-### USED TO MAKE THE PERSON FOLDER AND MOVE THE IMAGES TO IT ###
-#coco_set_val = DataSetCoco(DataSetType.VALIDATION)
-#move_images_with_persons_to_person_dir(coco_set_val)
-#coco_set_train = DataSetCoco(DataSetType.TRAIN)
-#move_images_with_persons_to_person_dir(coco_set_TRAIN)
+
+# process_data()
