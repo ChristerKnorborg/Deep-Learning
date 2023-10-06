@@ -14,6 +14,7 @@ import time
 import os
 import copy
 from dataset import TRAIN, VALIDATION
+from yolo_v1 import Yolo_v1 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
                       else "cpu")  # Use GPU if available
@@ -21,7 +22,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
 
 
 
-def train(model, criterion, optimizer, scheduler, num_epochs=25):
+def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -44,11 +45,9 @@ def train(model, criterion, optimizer, scheduler, num_epochs=25):
             running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
-            i = 0
+
             for inputs, labels in dataloaders[phase]:
-                i += 1
-                if i == 10:
-                    break
+
                 
                 print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
                 print(labels.shape)  # This should print [batch_size] if doing classification.
