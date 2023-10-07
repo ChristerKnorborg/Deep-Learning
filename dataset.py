@@ -10,6 +10,7 @@ from pycocotools.coco import COCO
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import torch
 
 from torch.utils.data import Dataset
 
@@ -191,21 +192,59 @@ class DataSetCoco(Dataset):
         # Get the category ID for "person"
         person_cat_id = coco.getCatIds(catNms=["person"])[0]
 
+
+
+        S = 7 # Assuming a 7x7 grid for YOLOv1
+        B = 2  # Number of bounding boxes per cell
+        C = 1  # Number of classes (just "person" in this case)
+
+
+        # The image is divided into a grid of size S x S. For each bounding box
+        label_tensor = torch.zeros((S, S, 5*B + C))
+
+
+
         # Convert COCO bounding boxes to YOLO format
         yolo_targets = []
         for ann in annotations:
             # Check if the annotation's category ID matches the one for "person"
             if ann['category_id'] == person_cat_id:
                 bbox = ann['bbox']
+
+
                 # Convert top-left (x, y) to center (x_center, y_center)
-                x = bbox[0] + bbox[2] / 2
-                y = bbox[1] + bbox[3] / 2
+                x_center = bbox[0] + bbox[2] / 2
+                y_center  = bbox[1] + bbox[3] / 2
+
+                # Normalize the coordinates
+                x = x_center / img_width
+                y = y_center / img_height
+
                 # Convert absolute width and height to relative
                 w = bbox[2] / img_width
                 h = bbox[3] / img_height
-                yolo_targets.append([x, y, w, h])
 
-        return img, yolo_targets
+
+                # Determine grid cell
+                i, j = int(y * S), int(x * S)
+                x_cell = x*S - j
+                y_cell = y*S - i
+
+                # Check which bounding box to use
+                if label_tensor[i, j, 4] == 0:  # First bounding box is empty
+                    box_index = 0
+                elif label_tensor[i, j, 9] == 0:  # Second bounding box is empty
+                    box_index = 5
+                else:
+                    # If both bounding boxes are occupied, you can decide to skip or overwrite one of them.
+                    # For simplicity, we'll overwrite the second bounding box. WE NEED TO REPLACE WITH IoU
+                    box_index = 5
+
+                # Update cell values
+                label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell, y_cell, w, h])
+                label_tensor[i, j, box_index+4] = 1  # Objectness score
+
+        return img, label_tensor
     
 
 
@@ -220,7 +259,15 @@ class DataSetCoco(Dataset):
         img_id = self.ids[index]
         img = self.coco.loadImgs([img_id])[0]
 
-        I = plt.imread(os.path.join(self.img_dir, img["file_name"]))  # "file_name is property from object"
+        # Construct the image path
+        image_path = os.path.join(self.img_dir, img["file_name"])
+
+        # Check if the image exists in the main directory. If not, change the path to look inside the 'person' subfolder
+        if not os.path.exists(image_path):
+            # Modify the path to look inside the 'person' subfolder
+            image_path = os.path.join(self.img_dir, 'person', img["file_name"])
+
+        I = plt.imread(image_path)  # Read the image
 
         # Load and display instance annotations
         plt.imshow(I)
@@ -244,7 +291,6 @@ class DataSetCoco(Dataset):
                         (bbox[0], bbox[1]), bbox[2], bbox[3],
                         linewidth=1, edgecolor='r', facecolor='none')
                     plt.gca().add_patch(rect)
-
         plt.axis('off')
         plt.show()
 
@@ -298,11 +344,11 @@ class DataSetCoco(Dataset):
 
 # TO SHOW LABELS FORMAT
 
-'''# Create an instance of the DataSetCoco class for the TRAIN dataset
+# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN)
 
 # Fetch a sample by its index
-index_to_test = 5  # You can change this to any valid index
+index_to_test = 4 # You can change this to any valid index
 img, yolo_targets = coco_data[index_to_test]
 
 # Print the results
@@ -311,7 +357,7 @@ print("Image:", img)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)'''
+coco_data.show_image_with_bboxes(index_to_test)
 
 
 

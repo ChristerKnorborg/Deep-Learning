@@ -42,6 +42,12 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
             running_loss = 0.0
 
             i = 0
+
+            print("DATALOADERS")
+            print(dataloaders[phase])
+            
+
+
             for inputs, labels in dataloaders[phase]:
                 i += 1
                 if i == 10:
