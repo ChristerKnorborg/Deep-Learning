@@ -224,9 +224,7 @@ class DataSetCoco(Dataset):
         plt.imshow(I)
         annIds = self.coco.getAnnIds(imgIds=img["id"])
         anns = self.coco.loadAnns(annIds)
-        print("-----")
-        print(anns)
-        print("-----")
+
 
         # Get the category ID for "person"
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
@@ -235,6 +233,9 @@ class DataSetCoco(Dataset):
         for ann in anns:
             # Check if the annotation's category ID matches the one for "person"
             if ann['category_id'] == person_cat_id:
+                print("-----")
+                print(ann)
+                print("-----")
                 if 'bbox' in ann:
                     bbox = ann['bbox']
                     rect = patches.Rectangle(
@@ -293,39 +294,7 @@ class DataSetCoco(Dataset):
 
 
 
-# Example of usage:
-#coco_data = DataSetCoco(DataSetType.TRAIN)
-
-#coco_data.show_random_image_with_bboxes()
-# print(coco_data.get_categories())
-# categories = ['person']
-# data = coco_data.get_images_and_annotations(categories)
-# i = 0
-# for img_path, anns in data:
-#     if (i >= 1):
-#         break
-
-#     print("-------------")
-#     print(img_path)
-#     print("-------------")
-#     print(anns)
-#     print("-------------")
-#     print(data[i])
-#     print("-------------")
-#     i += 1
-
-# for index in range(0, 1):
-#     print("-------------")
-#     print(data[index])
-#     print("-------------")
-#     print(vars(data[index]))
-
-
-
-
-
-
-# TIL AT VISE LABELS FORMAT
+# TO SHOW LABELS FORMAT
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN)
@@ -340,8 +309,6 @@ print("Image:", img)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-get_item = coco_data.__getitem__(index_to_test)
-print("Get item:", get_item)
 coco_data.show_image_with_bboxes(index_to_test)
 
 
