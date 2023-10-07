@@ -47,7 +47,6 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 if i == 10:
                     break
 
-
                 
                 #print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
                 #print(labels.shape)  # This should print [batch_size] if doing classification.

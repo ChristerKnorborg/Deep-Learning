@@ -46,10 +46,8 @@ def process_data():
 
    # Use our custom DataSetCoco class
     image_datasets = {
-        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
-        #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        TRAIN: DataSetCoco(DataSetType.TRAIN),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION)
+        TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
     }
 
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True)
