@@ -199,20 +199,18 @@ class DataSetCoco(Dataset):
         C = 1  # Number of classes (just "person" in this case)
 
 
-        # The image is divided into a grid of size S x S. For each bounding box
+        # The image is divided into a grid of size S x S. For each bounding box 
         label_tensor = torch.zeros((S, S, 5*B + C))
 
 
 
         # Convert COCO bounding boxes to YOLO format
-        yolo_targets = []
         for ann in annotations:
-            # Check if the annotation's category ID matches the one for "person"
+            # Only create labels for category that matches the "person" class
             if ann['category_id'] == person_cat_id:
                 bbox = ann['bbox']
 
-
-                # Convert top-left (x, y) to center (x_center, y_center)
+                # Find midpoint coordinate (x, y) of bounding box
                 x_center = bbox[0] + bbox[2] / 2
                 y_center  = bbox[1] + bbox[3] / 2
 
@@ -220,15 +218,15 @@ class DataSetCoco(Dataset):
                 x = x_center / img_width
                 y = y_center / img_height
 
-                # Convert absolute width and height to relative
+                # Convert absolute width and height to be relative to the total image dimensions
                 w = bbox[2] / img_width
                 h = bbox[3] / img_height
 
 
                 # Determine grid cell
                 i, j = int(y * S), int(x * S)
-                x_cell = x*S - j
-                y_cell = y*S - i
+                x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
+                y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
 
                 # Check which bounding box to use
                 if label_tensor[i, j, 4] == 0:  # First bounding box is empty
@@ -236,13 +234,14 @@ class DataSetCoco(Dataset):
                 elif label_tensor[i, j, 9] == 0:  # Second bounding box is empty
                     box_index = 5
                 else:
-                    # If both bounding boxes are occupied, you can decide to skip or overwrite one of them.
-                    # For simplicity, we'll overwrite the second bounding box. WE NEED TO REPLACE WITH IoU
+                    # For now, overwrite the second box. Implement IoU later.
                     box_index = 5
 
                 # Update cell values
-                label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell, y_cell, w, h])
-                label_tensor[i, j, box_index+4] = 1  # Objectness score
+                label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+                label_tensor[i, j, box_index+4] = 1  # Objectness score. (probability that there's an object in the bounding box)
+                label_tensor[i, j, 5*B] = 1  # Class score for "person" (probability of the object being a "person")
+                # LAST LINE NEEDS TO BE CHANGED IF THERE ARE MORE CLASSES
 
         return img, label_tensor
     
