@@ -12,6 +12,7 @@ import copy
 from dataset import TRAIN, VALIDATION
 from yolo_v1 import Yolo_v1 
 
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
                       else "cpu")  # Use GPU if available
 

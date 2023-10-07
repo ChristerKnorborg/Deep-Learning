@@ -3,6 +3,7 @@ import torch.nn as nn
 import torchvision.models as models
 import numpy as np
 import torch.nn.init as init
+from torchvision.models.resnet import ResNet50_Weights
 
 
 class Yolo_v1(nn.Module):
@@ -12,7 +13,7 @@ class Yolo_v1(nn.Module):
         super(Yolo_v1, self).__init__()
 
         # Our encoder is a pretrained ResNet-50
-        resnet_layers = models.resnet50(pretrained=True)
+        resnet_layers = models.resnet50(weights=ResNet50_Weights.DEFAULT) # Load pretrained resnet50 model
         self.encoder = torch.nn.Sequential(*(list(resnet_layers.children())[:-1])) # Remove remove fc layer to get encoder only
         
         # Print the encoder architecture

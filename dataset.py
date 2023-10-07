@@ -13,10 +13,7 @@ import matplotlib.patches as patches
 
 from torch.utils.data import Dataset
 
-
 from enum import Enum
-
-import torch
 from PIL import Image
 
 TRAIN = "./data/train2017"
@@ -48,7 +45,8 @@ class DataSetCoco(Dataset):
 
         self.transform = transform
         self.ids = list(self.coco.imgs.keys())
-        self.img_dir = os.path.join(self.img_dir, 'person')
+        #self.img_dir = os.path.join(self.img_dir, 'person')
+        
 
 
 
@@ -177,7 +175,10 @@ class DataSetCoco(Dataset):
         path = coco.loadImgs(img_id)[0]['file_name']
         image_path = os.path.join(self.img_dir, path)
 
-        # print("Trying to open:", image_path)
+        print("Path:" , path)
+        print("Img dir: ", self.img_dir)
+        print("Image path:", image_path)
+        
         img = Image.open(image_path).convert('RGB')
 
         img_width, img_height = img.size  # Get the width and height before transforming (Maybe fix later)
@@ -296,7 +297,7 @@ class DataSetCoco(Dataset):
 
 # TO SHOW LABELS FORMAT
 
-# Create an instance of the DataSetCoco class for the TRAIN dataset
+'''# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN)
 
 # Fetch a sample by its index
@@ -309,6 +310,6 @@ print("Image:", img)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)
+coco_data.show_image_with_bboxes(index_to_test)'''
 
 
