@@ -45,7 +45,6 @@ class DataSetCoco(Dataset):
 
         self.transform = transform
         self.ids = list(self.coco.imgs.keys())
-        #self.img_dir = os.path.join(self.img_dir, 'person')
         
 
 
@@ -175,9 +174,11 @@ class DataSetCoco(Dataset):
         path = coco.loadImgs(img_id)[0]['file_name']
         image_path = os.path.join(self.img_dir, path)
 
-        print("Path:" , path)
-        print("Img dir: ", self.img_dir)
-        print("Image path:", image_path)
+        # Check if the image exists in the train2017 folder. If not, change the path to look inside the 'person' subfolder
+        if not os.path.exists(image_path):
+            # Modify the path to look inside the 'person' subfolder
+            image_path = os.path.join(self.img_dir, 'person', path)
+
         
         img = Image.open(image_path).convert('RGB')
 
@@ -311,5 +312,7 @@ print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['f
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
 coco_data.show_image_with_bboxes(index_to_test)'''
+
+
 
 

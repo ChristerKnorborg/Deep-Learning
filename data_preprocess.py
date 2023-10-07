@@ -64,11 +64,4 @@ def process_data():
 
 
 
-
-# coco_set_val = DataSetCoco(DataSetType.VALIDATION)
-# move_images_with_persons_to_person_dir(coco_set_val)
-# coco_set_val = DataSetCoco(DataSetType.VALIDATION)
-# move_images_with_persons_to_person_dir(coco_set_val)
-
-
 # process_data()
