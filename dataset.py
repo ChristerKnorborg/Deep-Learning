@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 
@@ -41,9 +42,16 @@ class DataSetCoco(Dataset):
         """
         self.img_dir, self.ann_file = datatype.value
         self._ensure_data_exists_or_download() # Ensure data exists or download it
-        self.coco = COCO(self.ann_file)
+        self.coco = COCO(self.ann_file) 
+        self.move_images_with_persons_to_person_dir # Move images with persons to the 'person' directory (if not already done)
+
+
         self.transform = transform
         self.ids = list(self.coco.imgs.keys())
+        self.img_dir = os.path.join(self.img_dir, 'person')
+
+
+
 
     def _ensure_data_exists_or_download(self):
         """Downloads and extracts the COCO dataset into the data directory if it doesn't already exist."""
@@ -91,6 +99,10 @@ class DataSetCoco(Dataset):
         else:
             print(f"Files in {extract_path} already exist. Skipping download.")
 
+
+
+
+
     def get_categories(self):
         """
         Returns:
@@ -135,6 +147,13 @@ class DataSetCoco(Dataset):
         """Returns the total number of samples in the dataset."""
         return len(self.coco.getImgIds())
     
+
+
+
+
+
+
+
     
     def __getitem__(self, index):
         """
@@ -142,32 +161,64 @@ class DataSetCoco(Dataset):
             index (int): Index
 
         Returns:
-            tuple: Tuple (image, target). target is the object returned by ``coco.loadAnns``.
+            tuple: Tuple (image, yolo_targets). 
+
+            yolo_targets is a list of bounding boxes in the format [x, y, w, h, c], where x, y ∈ [0,1] are the horizontal and
+            vertical coordinates of the objects midpoint relative to the origin of the bounding box (0,0). 
+            E.g. x = 1 means mid point is all the way to the right of the cell.
+            The width and height w, h of the object can exceed 1 if the object extends beyond the boundaries of the grid cell.
+            c is the confidence score of the bounding box.
         """
         coco = self.coco
         img_id = self.ids[index]
         ann_ids = coco.getAnnIds(imgIds=img_id)
-        target = coco.loadAnns(ann_ids)
+        annotations = coco.loadAnns(ann_ids)
 
         path = coco.loadImgs(img_id)[0]['file_name']
+        image_path = os.path.join(self.img_dir, path)
 
-        img = Image.open(os.path.join(self.img_dir, path)).convert('RGB')
+        # print("Trying to open:", image_path)
+        img = Image.open(image_path).convert('RGB')
+
+        img_width, img_height = img.size  # Get the width and height before transforming (Maybe fix later)
+
         if self.transform is not None:
             img = self.transform(img)
 
-        return img, target
+
+        # Get the category ID for "person"
+        person_cat_id = coco.getCatIds(catNms=["person"])[0]
+
+        # Convert COCO bounding boxes to YOLO format
+        yolo_targets = []
+        for ann in annotations:
+            # Check if the annotation's category ID matches the one for "person"
+            if ann['category_id'] == person_cat_id:
+                bbox = ann['bbox']
+                # Convert top-left (x, y) to center (x_center, y_center)
+                x = bbox[0] + bbox[2] / 2
+                y = bbox[1] + bbox[3] / 2
+                # Convert absolute width and height to relative
+                w = bbox[2] / img_width
+                h = bbox[3] / img_height
+                yolo_targets.append([x, y, w, h])
+
+        return img, yolo_targets
     
-    def show_random_image_with_bboxes(self):
+
+
+
+
+
+
+    def show_image_with_bboxes(self, index):
         """Displays a random image from the dataset with its bounding boxes."""
 
-        # Choose a random image and get its ID and filename
-        imgIds = self.coco.getImgIds()
-        imgId = np.random.choice(imgIds)
+        # Choose a image and get its ID and filename
+        img_id = self.ids[index]
+        img = self.coco.loadImgs([img_id])[0]
 
-        img = self.coco.loadImgs([imgId])[0]
-
-        I = plt.imread(os.path.join(
-            self.img_dir, img["file_name"]))  # "file_name is property from object"
+        I = plt.imread(os.path.join(self.img_dir, img["file_name"]))  # "file_name is property from object"
 
         # Load and display instance annotations
         plt.imshow(I)
@@ -176,36 +227,70 @@ class DataSetCoco(Dataset):
         print("-----")
         print(anns)
         print("-----")
+
+        # Get the category ID for "person"
+        person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
+
+
         for ann in anns:
-            if 'bbox' in ann:
-                bbox = ann['bbox']
-                rect = patches.Rectangle(
-                    (bbox[0], bbox[1]), bbox[2], bbox[3],
-                    linewidth=1, edgecolor='r', facecolor='none')
-                plt.gca().add_patch(rect)
+            # Check if the annotation's category ID matches the one for "person"
+            if ann['category_id'] == person_cat_id:
+                if 'bbox' in ann:
+                    bbox = ann['bbox']
+                    rect = patches.Rectangle(
+                        (bbox[0], bbox[1]), bbox[2], bbox[3],
+                        linewidth=1, edgecolor='r', facecolor='none')
+                    plt.gca().add_patch(rect)
 
         plt.axis('off')
         plt.show()
 
 
-    def download_person_images(self):
-        """
-        Downloads all images with the category "person" into a new folder 'persontrain2017'.
-        """
-        # Step 1: Identify all images with the category "person".
-        category = 'person'
-        person_img_data = self.get_images_and_annotations([category])
+    def move_images_with_persons_to_person_dir(self):
+        img_dir = self.img_dir  # Image directory
+        ann_file = self.ann_file  # Annotation JSON file
 
-        # Step 2: Prepare the new directory.
-        person_dir = './data/persontrain2017'
-        if not os.path.exists(person_dir):
-            os.makedirs(person_dir)
+        person_img_dir = os.path.join(img_dir, 'person')  # Person image directory
 
-        # Step 3: Copy images to the new directory.
-        for img_path, _ in person_img_data:
-            shutil.copy2(img_path, person_dir)
+        # Return if the person image directory already exists. Else create it and move images to it
+        if os.path.exists(person_img_dir):
+            return 
+        else:
+            os.makedirs(person_img_dir)
 
-        print(f'Images with category "person" have been copied to {person_dir}')
+        # Read the COCO annotation JSON file for the given dataset type
+        with open(ann_file, 'r') as f:
+            data = json.load(f)
+
+        # Extract category IDs for the 'person' class
+        person_cat_id = [cat['id']
+                        for cat in data['categories'] if cat['name'] == 'person'][0]
+
+        # Get image ids of images containing persons
+        img_ids_with_persons = [ann['image_id']
+                                for ann in data['annotations'] if ann['category_id'] == person_cat_id]
+
+        # Deduplicate the image IDs
+        img_ids_with_persons = list(set(img_ids_with_persons))
+
+        for i, img_id in enumerate(img_ids_with_persons):
+            # Assuming the filenames are formatted as '000000123456.jpg'
+            image_name = f"{img_id:012}.jpg"
+            image_path = os.path.join(img_dir, image_name)
+
+            new_img_file_path = os.path.join(person_img_dir, image_name)
+
+            print(f"Processing: {i + 1}/{len(img_ids_with_persons)}", end="\r")
+            os.rename(image_path, new_img_file_path)
+
+        print(f"Done moving images with persons for dataset!")
+
+
+
+
+
+
+
 
 
 # Example of usage:
@@ -234,3 +319,29 @@ class DataSetCoco(Dataset):
 #     print(data[index])
 #     print("-------------")
 #     print(vars(data[index]))
+
+
+
+
+
+
+# TIL AT VISE LABELS FORMAT
+
+# Create an instance of the DataSetCoco class for the TRAIN dataset
+coco_data = DataSetCoco(DataSetType.TRAIN)
+
+# Fetch a sample by its index
+index_to_test = 5  # You can change this to any valid index
+img, yolo_targets = coco_data[index_to_test]
+
+# Print the results
+print("Image:", img)
+# print image name:
+print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
+print("Bounding Boxes in YOLO format:", yolo_targets)
+
+get_item = coco_data.__getitem__(index_to_test)
+print("Get item:", get_item)
+coco_data.show_image_with_bboxes(index_to_test)
+
+

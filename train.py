@@ -1,11 +1,7 @@
 from yolo_v1 import Yolo_v1
 import torch
 import torch.nn as nn
-import torchvision.models as models
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms, models
-from dataset import DataSetCoco, DataSetType
 from torch.optim import lr_scheduler
 from data_preprocess import process_data
 import numpy as np
@@ -36,7 +32,6 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
 
         for phase in [TRAIN, VALIDATION]:
             if phase == TRAIN:
-                scheduler.step()
                 model.train()
             else:
                 model.eval()
@@ -45,12 +40,16 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
             running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
-
+            i = 0
             for inputs, labels in dataloaders[phase]:
+                i += 1
+                if i == 10:
+                    break
+
 
                 
-                print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
-                print(labels.shape)  # This should print [batch_size] if doing classification.
+                #print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
+                #print(labels.shape)  # This should print [batch_size] if doing classification.
                 inputs = inputs.to(DEVICE) 
                 labels = labels.to(DEVICE)
                 
@@ -58,6 +57,14 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 
                 with torch.set_grad_enabled(phase == TRAIN):
                     outputs = model(inputs)
+
+                    print("OUTPUTS")
+                    print(outputs.shape)
+                    print(outputs)
+                    print("LABELS")
+                    print(labels.shape)
+                    print(labels)
+
                     loss = criterion(outputs, labels)
                     # print(loss)
                     # print("-------")
@@ -67,6 +74,7 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                     if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
                         optimizer.step()
+                        scheduler.step() # Decay learning rate by a factor of 0.1 every 7 epochs (Comes after optimizer)
                 
                 # statistics
 

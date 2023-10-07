@@ -44,56 +44,25 @@ def process_data():
         ]),
     }
 
-    # Only use 'person' directory for the ImageFolder (As we do not need the other classes)
-    image_datasets = {x: datasets.ImageFolder(x, data_transforms[x])
-                      for x in [TRAIN, VALIDATION]}
+   # Use our custom DataSetCoco class
+    image_datasets = {
+        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
+        TRAIN: DataSetCoco(DataSetType.TRAIN),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION)
+    }
 
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification
-    print("Classes in TRAIN dataset:", image_datasets[TRAIN].classes)
-    print("Classes in VALIDATION dataset:", image_datasets[VALIDATION].classes)
+    # Note: This will print only one class ('person') since that's what pur dataset contains
+    print("Classes in TRAIN dataset:", ["person"])
+    print("Classes in VALIDATION dataset:", ["person"])
 
     return dataloaders, image_datasets
 
 
-def move_images_with_persons_to_person_dir(coco_dataset):
-    img_dir = coco_dataset.img_dir  # Image directory
-    ann_file = coco_dataset.ann_file  # Annotation JSON file
-
-    person_img_dir = os.path.join(img_dir, 'person')  # Person image directory
-
-    # Ensure the 'person' directory exists, if not, create it
-    if not os.path.exists(person_img_dir):
-        os.makedirs(person_img_dir)
-
-    # Read the COCO annotation JSON file for the given dataset type
-    with open(ann_file, 'r') as f:
-        data = json.load(f)
-
-    # Extract category IDs for the 'person' class
-    person_cat_id = [cat['id']
-                     for cat in data['categories'] if cat['name'] == 'person'][0]
-
-    # Get image ids of images containing persons
-    img_ids_with_persons = [ann['image_id']
-                            for ann in data['annotations'] if ann['category_id'] == person_cat_id]
-
-    # Deduplicate the image IDs
-    img_ids_with_persons = list(set(img_ids_with_persons))
-
-    for i, img_id in enumerate(img_ids_with_persons):
-        # Assuming the filenames are formatted as '000000123456.jpg'
-        image_name = f"{img_id:012}.jpg"
-        image_path = os.path.join(img_dir, image_name)
-
-        new_img_file_path = os.path.join(person_img_dir, image_name)
-
-        print(f"Processing: {i + 1}/{len(img_ids_with_persons)}", end="\r")
-        os.rename(image_path, new_img_file_path)
-
-    print(f"Done moving images with persons for dataset!")
 
 
 # coco_set_val = DataSetCoco(DataSetType.VALIDATION)

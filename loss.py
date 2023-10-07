@@ -18,8 +18,6 @@ class YOLOLoss(nn.Module):
 
     def forward(self, predictions, target):
 
-
-        
         # Split the tensor into its component parts
         # Predictions are in the shape (batch_size, S*S*(B*5 + C))
         pred_boxes = predictions[..., :self.B*5].view(-1, self.S, self.S, self.B, 5)
