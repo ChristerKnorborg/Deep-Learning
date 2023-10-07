@@ -348,11 +348,9 @@ class DataSetCoco(Dataset):
 coco_data = DataSetCoco(DataSetType.TRAIN)
 
 # Fetch a sample by its index
-index_to_test = 4 # You can change this to any valid index
+index_to_test = 3 # You can change this to any valid index
 img, yolo_targets = coco_data[index_to_test]
 
-# Print the results
-print("Image:", img)
 # print image name:
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
