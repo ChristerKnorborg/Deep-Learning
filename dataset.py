@@ -1,5 +1,6 @@
 import json
 import os
+from random import random
 import shutil
 
 from typing import Any
@@ -17,6 +18,7 @@ from torch.utils.data import Dataset
 from enum import Enum
 from PIL import Image
 
+import random
 TRAIN = "./data/train2017"
 VALIDATION = "./data/val2017"
 
@@ -159,13 +161,7 @@ class DataSetCoco(Dataset):
             index (int): Index
 
         Returns:
-            tuple: Tuple (image, yolo_targets). 
-
-            yolo_targets is a list of bounding boxes in the format [x, y, w, h, c], where x, y ∈ [0,1] are the horizontal and
-            vertical coordinates of the objects midpoint relative to the origin of the bounding box (0,0). 
-            E.g. x = 1 means mid point is all the way to the right of the cell.
-            The width and height w, h of the object can exceed 1 if the object extends beyond the boundaries of the grid cell.
-            c is the confidence score of the bounding box.
+            
         """
         coco = self.coco
         img_id = self.ids[index]
@@ -183,14 +179,23 @@ class DataSetCoco(Dataset):
         
         img = Image.open(image_path).convert('RGB')
 
-        img_width, img_height = img.size  # Get the width and height before transforming (Maybe fix later)
+        # Convert the PIL Image to a tensor
+        to_tensor = transforms.ToTensor()
+        img = to_tensor(img)
+
+        # Crop the image
+        img, bounding_boxes = self.crop_image(img, annotations)
+
+        original_img_width, original_img_height = img.shape[1:3]
 
         if self.transform is not None:
-            img = self.transform(img)
+            img= self.transform(img)
 
+        img_height, img_width = img.shape[1:3]  # Get the width and height after transforming the image (now in tensor format)
 
-        # Get the category ID for "person"
-        person_cat_id = coco.getCatIds(catNms=["person"])[0]
+        # Calculate scaling factors
+        width_scale = img_width / original_img_width
+        height_scale = img_height / original_img_height
 
 
 
@@ -202,48 +207,102 @@ class DataSetCoco(Dataset):
         # The image is divided into a grid of size S x S. For each bounding box 
         label_tensor = torch.zeros((S, S, 5*B + C))
 
-
-
+        idx = 0
         # Convert COCO bounding boxes to YOLO format
-        for ann in annotations:
+        for bbox in bounding_boxes:
             # Only create labels for category that matches the "person" class
-            if ann['category_id'] == person_cat_id:
-                bbox = ann['bbox']
 
-                # Find midpoint coordinate (x, y) of bounding box
-                x_center = bbox[0] + bbox[2] / 2
-                y_center  = bbox[1] + bbox[3] / 2
+            # Adjust for resizing
+            bbox[0] *= width_scale
+            bbox[1] *= height_scale
+            bbox[2] *= width_scale
+            bbox[3] *= height_scale
 
-                # Normalize the coordinates
-                x = x_center / img_width
-                y = y_center / img_height
+            # Find midpoint coordinate (x, y) of bounding box
+            x_center = bbox[0] + bbox[2] / 2
+            y_center  = bbox[1] + bbox[3] / 2
 
-                # Convert absolute width and height to be relative to the total image dimensions
-                w = bbox[2] / img_width
-                h = bbox[3] / img_height
+            # Normalize the coordinates
+            x = x_center / img_width
+            y = y_center / img_height
+
+            # Convert absolute width and height to be relative to the total image dimensions
+            w = bbox[2] / img_width
+            h = bbox[3] / img_height
 
 
-                # Determine grid cell
-                i, j = int(y * S), int(x * S)
-                x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
-                y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
+            # Determine grid cell
+            i, j = int(y * S), int(x * S)
+            x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
+            y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
 
-                # Check which bounding box to use
-                if label_tensor[i, j, 4] == 0:  # First bounding box is empty
-                    box_index = 0
-                elif label_tensor[i, j, 9] == 0:  # Second bounding box is empty
-                    box_index = 5
-                else:
-                    # For now, overwrite the second box. Implement IoU later.
-                    box_index = 5
+            print("cell: ", i, j)
+            print("iteration idx", idx, bbox)
+            idx += 1
 
-                # Update cell values
-                label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
-                label_tensor[i, j, box_index+4] = 1  # Objectness score. (probability that there's an object in the bounding box)
-                label_tensor[i, j, 5*B] = 1  # Class score for "person" (probability of the object being a "person")
-                # LAST LINE NEEDS TO BE CHANGED IF THERE ARE MORE CLASSES
+            # Check which bounding box to use
+            if label_tensor[i, j, 4] == 0:  # First bounding box is empty
+                box_index = 0
+            elif label_tensor[i, j, 9] == 0:  # Second bounding box is empty
+                box_index = 5
+            else:
+                # For now, overwrite the second box. Implement IoU later.
+                box_index = 5
+
+            # Update cell values
+            label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+            label_tensor[i, j, box_index+4] = 1  # Objectness score. (probability that there's an object in the bounding box)
+            label_tensor[i, j, 5*B] = 1  # Class score for "person" (probability of the object being a "person")
+            # LAST LINE NEEDS TO BE CHANGED IF THERE ARE MORE CLASSES
 
         return img, label_tensor
+    
+
+
+
+    def crop_image(self, img: torch.Tensor, annotations, size=(256, 256)):
+
+        # Get the category ID for "person"
+        person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
+        bounding_boxes = []
+
+        # Randomly choose a top-left corner for cropping
+        width, height = size
+        max_x = img.shape[2] - width
+        max_y = img.shape[1] - height
+        x1 = random.randint(0, max_x)
+        y1 = random.randint(0, max_y)
+        x2 = x1 + width
+        y2 = y1 + height
+
+        # Crop the image
+        new_img = img[:, y1:y2, x1:x2]
+
+        for ann in annotations:
+            bbox = ann['bbox']
+            if ann['category_id'] == person_cat_id:
+                # Check if bounding box lies within or partially within the cropped region
+                clipped_x1 = max(bbox[0], x1)
+                clipped_y1 = max(bbox[1], y1)
+                clipped_x2 = min(bbox[0] + bbox[2], x2)
+                clipped_y2 = min(bbox[1] + bbox[3], y2)
+
+                # Convert clipped coordinates back to width/height format and adjust for new origin
+                new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
+                
+                # Only append the bounding box if it has area greater than 0 (i.e., it exists in the cropped image)
+                if new_bbox[2] > 0 and new_bbox[3] > 0:
+                    bounding_boxes.append(new_bbox)
+                    print("bbox crop loop", bounding_boxes)
+                else: 
+                    print ("bbox crop loop else", bounding_boxes)
+
+                    print("Bounding box has area of 0. Skipping.")
+                    print("OLD", bbox)
+                    print("NEW", new_bbox)
+
+        print("bounding boxes slut crop", bounding_boxes)
+        return new_img, bounding_boxes
     
 
 
@@ -252,9 +311,9 @@ class DataSetCoco(Dataset):
 
 
     def show_image_with_bboxes(self, index):
-        """Displays a random image from the dataset with its bounding boxes."""
+        """Displays both the original and cropped image with their bounding boxes side by side."""
 
-        # Choose a image and get its ID and filename
+        # Choose an image and get its ID and filename
         img_id = self.ids[index]
         img = self.coco.loadImgs([img_id])[0]
 
@@ -266,31 +325,50 @@ class DataSetCoco(Dataset):
             # Modify the path to look inside the 'person' subfolder
             image_path = os.path.join(self.img_dir, 'person', img["file_name"])
 
-        I = plt.imread(image_path)  # Read the image
+        # Open the image using PIL
+        I_original = Image.open(image_path).convert('RGB')
 
-        # Load and display instance annotations
-        plt.imshow(I)
-        annIds = self.coco.getAnnIds(imgIds=img["id"])
-        anns = self.coco.loadAnns(annIds)
+        # Convert the PIL Image to a tensor
+        to_tensor = transforms.ToTensor()
+        I_cropped = to_tensor(I_original)
 
+        # Crop the image
+        I_cropped, bounding_boxes = self.crop_image(I_cropped, self.coco.loadAnns(self.coco.getAnnIds(imgIds=img["id"])))
 
-        # Get the category ID for "person"
+        # Apply the transformation
+        if self.transform is not None:
+            I_cropped = self.transform(I_cropped)
+
+        # Convert tensor back to PIL Image for visualization
+        if isinstance(I_cropped, torch.Tensor):
+            I_cropped = transforms.ToPILImage()(I_cropped)
+
+        # Create subplots to display both images side by side
+        fig, axarr = plt.subplots(1, 2, figsize=(12, 6))
+
+        # Display the original image with original bounding boxes
+        axarr[0].imshow(I_original)
+        annIds_original = self.coco.getAnnIds(imgIds=img["id"])
+        anns_original = self.coco.loadAnns(annIds_original)
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
 
+        for ann in anns_original:
+            if ann['category_id'] == person_cat_id and 'bbox' in ann:
+                bbox = ann['bbox']
+                rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
+                axarr[0].add_patch(rect)
+        axarr[0].set_title('Original Image')
+        axarr[0].axis('off')
 
-        for ann in anns:
-            # Check if the annotation's category ID matches the one for "person"
-            if ann['category_id'] == person_cat_id:
-                print("-----")
-                print(ann)
-                print("-----")
-                if 'bbox' in ann:
-                    bbox = ann['bbox']
-                    rect = patches.Rectangle(
-                        (bbox[0], bbox[1]), bbox[2], bbox[3],
-                        linewidth=1, edgecolor='r', facecolor='none')
-                    plt.gca().add_patch(rect)
-        plt.axis('off')
+        # Display the cropped image with adjusted bounding boxes
+        axarr[1].imshow(I_cropped)
+        for bbox in bounding_boxes:
+            rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
+            axarr[1].add_patch(rect)
+        axarr[1].set_title('Cropped Image')
+        axarr[1].axis('off')
+
+        plt.tight_layout()
         plt.show()
 
 
@@ -341,14 +419,29 @@ class DataSetCoco(Dataset):
 
 
 
-# TO SHOW LABELS FORMAT
+# TO ShOW LABELS FORMAT
+from torchvision import transforms
+data_transform = transforms.Compose([
+        # First arguments for inital trainings
+        #transforms.Resize(256),
+        
+        #transforms.RandomResizedCrop(256),
+        # Horizontally flip the image with probability 0.5
+        #transforms.RandomHorizontalFlip(0.5),
+        # Randomly change the brightness of the image by 10%
+        #transforms.ColorJitter(brightness=0.1),
+        # Randomly rotate images in the range (degrees, 0 to 180)
+        #transforms.RandomRotation(degrees=10),
+        # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-coco_data = DataSetCoco(DataSetType.TRAIN)
+coco_data = DataSetCoco(DataSetType.TRAIN, transform=None)
 
 # Fetch a sample by its index
 index_to_test = 3 # You can change this to any valid index
-img, yolo_targets = coco_data[index_to_test]
+img, yolo_targets = coco_data.__getitem__(index_to_test)
 
 # print image name:
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
