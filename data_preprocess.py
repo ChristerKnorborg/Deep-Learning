@@ -23,8 +23,8 @@ def process_data():
     data_transforms = {
         TRAIN: transforms.Compose([
             # First arguments for inital trainings
-            transforms.Resize(256),
-            transforms.CenterCrop(256),
+            #transforms.Resize(256),
+            #transforms.CenterCrop(256),
             
             #transforms.RandomResizedCrop(256),
             # Horizontally flip the image with probability 0.5
@@ -37,9 +37,9 @@ def process_data():
             # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         VALIDATION: transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(256),
-            transforms.ToTensor()
+            #transforms.Resize(256),
+            #transforms.CenterCrop(256),
+            #transforms.ToTensor()
             # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
