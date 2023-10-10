@@ -193,6 +193,8 @@ class DataSetCoco(Dataset):
 
         img_height, img_width = img.shape[1:3]  # Get the width and height after transforming the image (now in tensor format)
 
+
+
         # Calculate scaling factors
         width_scale = img_width / original_img_width
         height_scale = img_height / original_img_height
@@ -236,9 +238,6 @@ class DataSetCoco(Dataset):
             x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
             y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
 
-            print("cell: ", i, j)
-            print("iteration idx", idx, bbox)
-            idx += 1
 
             # Check which bounding box to use
             if label_tensor[i, j, 4] == 0:  # First bounding box is empty
@@ -261,7 +260,6 @@ class DataSetCoco(Dataset):
 
 
     def crop_image(self, img: torch.Tensor, annotations, size=(256, 256)):
-
         # Get the category ID for "person"
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
         bounding_boxes = []
@@ -281,29 +279,21 @@ class DataSetCoco(Dataset):
         for ann in annotations:
             bbox = ann['bbox']
             if ann['category_id'] == person_cat_id:
-                # Check if bounding box lies within or partially within the cropped region
-                clipped_x1 = max(bbox[0], x1)
-                clipped_y1 = max(bbox[1], y1)
-                clipped_x2 = min(bbox[0] + bbox[2], x2)
-                clipped_y2 = min(bbox[1] + bbox[3], y2)
+                # Calculate intersection coordinates
+                ix1 = max(bbox[0], x1)
+                iy1 = max(bbox[1], y1)
+                ix2 = min(bbox[0] + bbox[2], x2)
+                iy2 = min(bbox[1] + bbox[3], y2)
 
-                # Convert clipped coordinates back to width/height format and adjust for new origin
-                new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
-                
-                # Only append the bounding box if it has area greater than 0 (i.e., it exists in the cropped image)
-                if new_bbox[2] > 0 and new_bbox[3] > 0:
+                # If there's an intersection (partial or total) between the bounding box and the cropped region
+                if ix1 < ix2 and iy1 < iy2:
+                    # Convert intersection coordinates back to width/height format and adjust for new origin
+                    new_bbox = [ix1 - x1, iy1 - y1, ix2 - ix1, iy2 - iy1]
                     bounding_boxes.append(new_bbox)
-                    print("bbox crop loop", bounding_boxes)
                 else: 
-                    print ("bbox crop loop else", bounding_boxes)
+                    print("bbox not intersecting with cropped image", bbox)
 
-                    print("Bounding box has area of 0. Skipping.")
-                    print("OLD", bbox)
-                    print("NEW", new_bbox)
-
-        print("bounding boxes slut crop", bounding_boxes)
         return new_img, bounding_boxes
-    
 
 
 
@@ -312,6 +302,8 @@ class DataSetCoco(Dataset):
 
     def show_image_with_bboxes(self, index):
         """Displays both the original and cropped image with their bounding boxes side by side."""
+        
+        S = 7  # Grid size
 
         # Choose an image and get its ID and filename
         img_id = self.ids[index]
@@ -346,8 +338,16 @@ class DataSetCoco(Dataset):
         # Create subplots to display both images side by side
         fig, axarr = plt.subplots(1, 2, figsize=(12, 6))
 
+        # Helper function to draw grid
+        def draw_grid(ax, width, height):
+            for i in range(1, S):
+                ax.axvline(x=i * width / S, color='blue', linewidth=0.2)
+                ax.axhline(y=i * height / S, color='blue', linewidth=0.2)
+
         # Display the original image with original bounding boxes
         axarr[0].imshow(I_original)
+        draw_grid(axarr[0], I_original.width, I_original.height)
+        
         annIds_original = self.coco.getAnnIds(imgIds=img["id"])
         anns_original = self.coco.loadAnns(annIds_original)
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
@@ -362,6 +362,8 @@ class DataSetCoco(Dataset):
 
         # Display the cropped image with adjusted bounding boxes
         axarr[1].imshow(I_cropped)
+        draw_grid(axarr[1], I_cropped.width, I_cropped.height)
+
         for bbox in bounding_boxes:
             rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
             axarr[1].add_patch(rect)
