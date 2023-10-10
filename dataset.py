@@ -23,6 +23,9 @@ TRAIN = "./data/train2017"
 VALIDATION = "./data/val2017"
 
 
+from model_constants import S, B, C # Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
+
+
 
 # Define the DataSetType enum
 class DataSetType(Enum):
@@ -37,8 +40,10 @@ class DataSetCoco(Dataset):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
-        - img_dir (str): Path to the directory containing images.
-        - ann_file (str): Path to the annotation file.
+        - datatype (DataSetType): The type of dataset to use consisting of:
+            - img_dir (str): Path to the directory containing images.
+            - ann_file (str): Path to the annotation file.
+        - transform (callable, optional): Optional transform to be applied 
         """
         self.img_dir, self.ann_file = datatype.value
         self._ensure_data_exists_or_download() # Ensure data exists or download it
@@ -49,6 +54,18 @@ class DataSetCoco(Dataset):
         self.transform = transform
         self.ids = list(self.coco.imgs.keys())
         
+
+
+
+
+
+
+
+
+##############################################################################################################
+                        ### FILE DOWNLOADING AND ORGANIZATION CODE STARTS HERE ###
+##############################################################################################################
+
 
 
 
@@ -101,6 +118,54 @@ class DataSetCoco(Dataset):
 
 
 
+    def move_images_with_persons_to_person_dir(self):
+        img_dir = self.img_dir  # Image directory
+        ann_file = self.ann_file  # Annotation JSON file
+
+        person_img_dir = os.path.join(img_dir, 'person')  # Person image directory
+
+        # Return if the person image directory already exists. Else create it and move images to it
+        if os.path.exists(person_img_dir):
+            return 
+        else:
+            os.makedirs(person_img_dir)
+
+        # Read the COCO annotation JSON file for the given dataset type
+        with open(ann_file, 'r') as f:
+            data = json.load(f)
+
+        # Extract category IDs for the 'person' class
+        person_cat_id = [cat['id']
+                        for cat in data['categories'] if cat['name'] == 'person'][0]
+
+        # Get image ids of images containing persons
+        img_ids_with_persons = [ann['image_id']
+                                for ann in data['annotations'] if ann['category_id'] == person_cat_id]
+
+        # Deduplicate the image IDs
+        img_ids_with_persons = list(set(img_ids_with_persons))
+
+        for i, img_id in enumerate(img_ids_with_persons):
+            # Assuming the filenames are formatted as '000000123456.jpg'
+            image_name = f"{img_id:012}.jpg"
+            image_path = os.path.join(img_dir, image_name)
+
+            new_img_file_path = os.path.join(person_img_dir, image_name)
+
+            print(f"Processing: {i + 1}/{len(img_ids_with_persons)}", end="\r")
+            os.rename(image_path, new_img_file_path)
+
+        print(f"Done moving images with persons for dataset!")
+
+
+
+
+##############################################################################################################
+                                ### PRODUCTION CODE STARTS HERE ###
+##############################################################################################################
+
+    
+
 
 
     def get_categories(self):
@@ -110,6 +175,9 @@ class DataSetCoco(Dataset):
         """
         categories = self.coco.loadCats(self.coco.getCatIds())
         return [category['name'] for category in categories]
+
+
+
 
     def get_images_and_annotations(self, categories=[]):
         """
@@ -140,17 +208,12 @@ class DataSetCoco(Dataset):
 
         return data
 
-    def __get_image__(self, __name: str) -> Any:
-        pass
+
+
 
     def __len__(self):
         """Returns the total number of samples in the dataset."""
         return len(self.coco.getImgIds())
-    
-
-
-
-
 
 
 
@@ -199,11 +262,6 @@ class DataSetCoco(Dataset):
         width_scale = img_width / original_img_width
         height_scale = img_height / original_img_height
 
-
-
-        S = 7 # Assuming a 7x7 grid for YOLOv1
-        B = 2  # Number of bounding boxes per cell
-        C = 1  # Number of classes (just "person" in this case)
 
 
         # The image is divided into a grid of size S x S. For each bounding box 
@@ -302,8 +360,6 @@ class DataSetCoco(Dataset):
 
     def show_image_with_bboxes(self, index):
         """Displays both the original and cropped image with their bounding boxes side by side."""
-        
-        S = 7  # Grid size
 
         # Choose an image and get its ID and filename
         img_id = self.ids[index]
@@ -374,44 +430,7 @@ class DataSetCoco(Dataset):
         plt.show()
 
 
-    def move_images_with_persons_to_person_dir(self):
-        img_dir = self.img_dir  # Image directory
-        ann_file = self.ann_file  # Annotation JSON file
-
-        person_img_dir = os.path.join(img_dir, 'person')  # Person image directory
-
-        # Return if the person image directory already exists. Else create it and move images to it
-        if os.path.exists(person_img_dir):
-            return 
-        else:
-            os.makedirs(person_img_dir)
-
-        # Read the COCO annotation JSON file for the given dataset type
-        with open(ann_file, 'r') as f:
-            data = json.load(f)
-
-        # Extract category IDs for the 'person' class
-        person_cat_id = [cat['id']
-                        for cat in data['categories'] if cat['name'] == 'person'][0]
-
-        # Get image ids of images containing persons
-        img_ids_with_persons = [ann['image_id']
-                                for ann in data['annotations'] if ann['category_id'] == person_cat_id]
-
-        # Deduplicate the image IDs
-        img_ids_with_persons = list(set(img_ids_with_persons))
-
-        for i, img_id in enumerate(img_ids_with_persons):
-            # Assuming the filenames are formatted as '000000123456.jpg'
-            image_name = f"{img_id:012}.jpg"
-            image_path = os.path.join(img_dir, image_name)
-
-            new_img_file_path = os.path.join(person_img_dir, image_name)
-
-            print(f"Processing: {i + 1}/{len(img_ids_with_persons)}", end="\r")
-            os.rename(image_path, new_img_file_path)
-
-        print(f"Done moving images with persons for dataset!")
+    
 
 
 

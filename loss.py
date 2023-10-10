@@ -1,16 +1,13 @@
 import torch
 import torch.nn as nn
 
-
+from model_constants import S, B, C
 
 # Loss function based on the loss function from the YOLO paper: https://arxiv.org/pdf/1506.02640.pdf
 
 class YOLOLoss(nn.Module):
-    def __init__(self, S=7, B=2, C=1):
+    def __init__(self):
         super(YOLOLoss, self).__init__()
-        self.S = S # grid size (SxS)
-        self.B = B # number of bounding boxes per grid cell
-        self.C = C # number of classes
 
         # lambda_coord and lamda_noobj are parameters used in the paper
         self.lambda_coord = 5 
@@ -20,11 +17,11 @@ class YOLOLoss(nn.Module):
 
         # Split the tensor into its component parts
         # Predictions are in the shape (batch_size, S*S*(B*5 + C))
-        pred_boxes = predictions[..., :self.B*5].view(-1, self.S, self.S, self.B, 5)
-        pred_class = predictions[..., self.B*5:]
+        pred_boxes = predictions[..., :B*5].view(-1, S, S, B, 5, C)
+        pred_class = predictions[..., B*5:]
 
-        target_boxes = target[..., :self.B*5].view(-1, self.S, self.S, self.B, 5)
-        target_class = target[..., self.B*5:]
+        target_boxes = target[..., :B*5].view(-1, S, S, B, 5)
+        target_class = target[..., B*5:]
 
         # Get the objectness score
         obj_score = pred_boxes[..., 4]
@@ -43,7 +40,7 @@ class YOLOLoss(nn.Module):
         conf_loss = conf_loss_obj + conf_loss_noobj
 
         # Classification loss
-        class_loss = torch.sum(obj_mask.view(-1, self.S, self.S, 1).float() * (pred_class - target_class)**2)
+        class_loss = torch.sum(obj_mask.view(-1, S, S, 1).float() * (pred_class - target_class)**2)
 
         total_loss = loc_loss + conf_loss + class_loss
         return total_loss

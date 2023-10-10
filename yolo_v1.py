@@ -6,6 +6,7 @@ import torch.nn.init as init
 from torchvision.models.resnet import ResNet50_Weights
 
 
+from model_constants import S, B, C
 class Yolo_v1(nn.Module):
 
 
@@ -20,14 +21,8 @@ class Yolo_v1(nn.Module):
         #print("Encoder: \n")
         #print(self.encoder)
 
-
-        # Our YOLO v1 specific parameters
-        self.S = 7  # Number of grid cells along one dimension (SxS total cells)
-        self.B = 2  # Number of bounding boxes per grid cell
-        self.C = 1  # Number of classes
-
         # From the paper: S * S * (B * 5 + C), where 5 is the number of parameters in each bounding box (x, y, w, h, confidence)
-        prediction_tensor = self.S**2 * (self.B*5 + self.C) # 7*7*(2*5+1) = 539
+        prediction_tensor = S**2 * (B*5 + C) # 7*7*(2*5+1) = 539
 
         self.fc = nn.Sequential(
             nn.Flatten(),
@@ -58,7 +53,7 @@ class Yolo_v1(nn.Module):
         output = self.fc(x)
 
         # Reshape the output to [batch_size, S, S, B*5 + C]
-        output = output.view(-1, self.S, self.S, self.B*5 + self.C) # -1 means the dimension is based number of elements in the tensorand  other given dimension 
+        output = output.view(-1, S, S, B*5 + C) # -1 means the dimension is based number of elements in the tensorand  other given dimension 
    
         return output
 
