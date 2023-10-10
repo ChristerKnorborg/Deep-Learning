@@ -36,7 +36,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType, transform = None):
+    def __init__(self, datatype: DataSetType, transform = None, save_crop = False):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -53,6 +53,9 @@ class DataSetCoco(Dataset):
 
         self.transform = transform
         self.ids = list(self.coco.imgs.keys())
+
+        self.save_crop = save_crop # If True, saves the last crop coordinates to self.last_crop_coordinates
+        self.last_crop_coordinates = [] # Stores the last crop coordinates if save_crop is True
         
 
 
@@ -331,16 +334,44 @@ class DataSetCoco(Dataset):
         x2 = x1 + width
         y2 = y1 + height
 
+        # Save crop coordinates if save_crop flag is set and they are not already saved.
+        if self.save_crop and len(self.last_crop_coordinates) == 0:
+            self.last_crop_coordinates = (x1, y1, x2, y2)
+        elif self.save_crop:
+            x1, y1, x2, y2 = self.last_crop_coordinates
+
+
         # Crop the image
         new_img = img[:, y1:y2, x1:x2]
+
+
+
+        # Define the corners for the crop
+        crop_top_left = (x1, y1)
+        crop_top_right = (x2, y1)
+        crop_bottom_left = (x1, y2)
+        crop_bottom_right = (x2, y2)
+
+        
+
 
         for ann in annotations:
             bbox = ann['bbox']
             if ann['category_id'] == person_cat_id:
 
-                # Check if the bounding box intersect with the cropped image
-                intersects = not (x2 < bbox[0] or x1 > bbox[0] + bbox[2] or y2 < bbox[1] or y1 > bbox[1] + bbox[3])
 
+                # Define the corners for the bounding box
+                bbox_top_left = (bbox[0], bbox[1])
+                bbox_top_right = (bbox[0] + bbox[2], bbox[1])
+                bbox_bottom_left = (bbox[0], bbox[1] + bbox[3])
+                bbox_bottom_right = (bbox[0] + bbox[2], bbox[1] + bbox[3])
+
+
+                # Check intersection
+                intersects = (bbox_top_left[0] < crop_bottom_right[0] and
+                              bbox_bottom_right[0] > crop_top_left[0] and
+                              bbox_top_left[1] < crop_bottom_right[1] and
+                              bbox_bottom_right[1] > crop_top_left[1])
                 if intersects:
                     # Adjust the bounding box to fit within the cropped region
                     clipped_x1 = max(bbox[0], x1)
@@ -351,7 +382,7 @@ class DataSetCoco(Dataset):
                     # Convert clipped coordinates back to width/height format and adjust for new origin
                     new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
                     bounding_boxes.append(new_bbox)
-
+                
         return new_img, bounding_boxes
 
 
@@ -460,7 +491,7 @@ data_transform = transforms.Compose([
 
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-coco_data = DataSetCoco(DataSetType.TRAIN, transform=None)
+coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
 
 # Fetch a sample by its index
 index_to_test = 3 # You can change this to any valid index
