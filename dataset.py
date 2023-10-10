@@ -337,19 +337,20 @@ class DataSetCoco(Dataset):
         for ann in annotations:
             bbox = ann['bbox']
             if ann['category_id'] == person_cat_id:
-                # Calculate intersection coordinates
-                ix1 = max(bbox[0], x1)
-                iy1 = max(bbox[1], y1)
-                ix2 = min(bbox[0] + bbox[2], x2)
-                iy2 = min(bbox[1] + bbox[3], y2)
 
-                # If there's an intersection (partial or total) between the bounding box and the cropped region
-                if ix1 < ix2 and iy1 < iy2:
-                    # Convert intersection coordinates back to width/height format and adjust for new origin
-                    new_bbox = [ix1 - x1, iy1 - y1, ix2 - ix1, iy2 - iy1]
+                # Check if the bounding box intersect with the cropped image
+                intersects = not (x2 < bbox[0] or x1 > bbox[0] + bbox[2] or y2 < bbox[1] or y1 > bbox[1] + bbox[3])
+
+                if intersects:
+                    # Adjust the bounding box to fit within the cropped region
+                    clipped_x1 = max(bbox[0], x1)
+                    clipped_y1 = max(bbox[1], y1)
+                    clipped_x2 = min(bbox[0] + bbox[2], x2)
+                    clipped_y2 = min(bbox[1] + bbox[3], y2)
+
+                    # Convert clipped coordinates back to width/height format and adjust for new origin
+                    new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
                     bounding_boxes.append(new_bbox)
-                else: 
-                    print("bbox not intersecting with cropped image", bbox)
 
         return new_img, bounding_boxes
 
@@ -360,6 +361,7 @@ class DataSetCoco(Dataset):
 
     def show_image_with_bboxes(self, index):
         """Displays both the original and cropped image with their bounding boxes side by side."""
+
 
         # Choose an image and get its ID and filename
         img_id = self.ids[index]
