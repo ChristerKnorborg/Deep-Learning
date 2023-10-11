@@ -9,7 +9,7 @@ class YOLOLoss(nn.Module):
     def __init__(self):
         super(YOLOLoss, self).__init__()
 
-        # lambda_coord and lamda_noobj are parameters used in the paper
+        # lambda_coord and lamda_noobj are parameters used in the paper for 
         self.lambda_coord = 5 
         self.lambda_noobj = 0.5 
 
@@ -17,8 +17,23 @@ class YOLOLoss(nn.Module):
 
         # Split the tensor into its component parts
         # Predictions are in the shape (batch_size, S*S*(B*5 + C))
-        pred_boxes = predictions[..., :B*5].view(-1, S, S, B, 5, C)
+        pred_boxes = predictions[..., :B*5].view(-1, S, S, C, B, 5)
         pred_class = predictions[..., B*5:]
+
+
+
+        # ======================= #
+        #   BOX COORDINATE LOSS   #
+        # ======================= #
+
+
+
+
+        # ======================= #
+        #       OBJECT LOSS       #
+        # ======================= #
+
+
 
         target_boxes = target[..., :B*5].view(-1, S, S, B, 5)
         target_class = target[..., B*5:]
