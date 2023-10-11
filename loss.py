@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 from model_constants import S, B, C
 
 # Loss function based on the loss function from the YOLO paper: https://arxiv.org/pdf/1506.02640.pdf
@@ -12,57 +13,129 @@ class YOLOLoss(nn.Module):
         # lambda_coord and lamda_noobj are parameters used in the paper for 
         self.lambda_coord = 5 
         self.lambda_noobj = 0.5 
+        self.mse = nn.MSELoss(reduction="sum")  # Use sum to sum the losses of all grid cells
 
-    def forward(self, predictions, target):
+    def forward(self, predictions, target: torch.Tensor):
 
-        # Split the tensor into its component parts
-        # Predictions are in the shape (batch_size, S*S*(B*5 + C))
-        pred_boxes = predictions[..., :B*5].view(-1, S, S, C, B, 5)
-        pred_class = predictions[..., B*5:]
+        # Separate the components of the prediction tensor
 
+        # Objectness score
+        pred_confidence = predictions[..., :C] # Get the first C values of the tensor (C itself exclusive). E.g. 3D tensor: predictions[:, :, :C]
+        # Bounding box coordinates
+        pred_boxes = predictions[..., C:C+5*B].reshape(-1, S, S, B, 5) # index from C to C+5*B (C inclusive, C+5*B exclusive). E.g. bounding box coordinates
+        
+        # Separate the components of the target tensor
+        target_confidence = target[..., :C] # Get the first C values of the tensor (C itself exclusive)
+        target_boxes = target[..., C:C+5*B].reshape(-1, S, S, B, 5) # index from C to C+5*B (C inclusive, C+5*B exclusive). E.g. get every bounding box per grid cell
 
+        print("target boxes shape:\n", target_boxes.shape)
+        print("target boxes \n", target_boxes)
 
         # ======================= #
         #   BOX COORDINATE LOSS   #
         # ======================= #
 
-
+        # Only compute loss for cells which contain objects
+        obj_mask = target_confidence > 0 # 1 if object exists in cell, 0 otherwise
+        pred_coords = pred_boxes[obj_mask, ..., 0] # get the first 4 values of the tensor (x, y, w, h)
+        target_coords = target_boxes[obj_mask, ..., 1:5] # get the first 4 values of the tensor (x, y, w, h)
+        coord_loss = self.lambda_coord * self.mse(pred_coords, target_coords) # MSE loss
 
 
         # ======================= #
         #       OBJECT LOSS       #
         # ======================= #
 
+        pred_obj_conf = pred_boxes[obj_mask, ..., 1:5]
+        target_obj_conf = target_boxes[obj_mask, ..., 1:5]
+        object_loss = self.mse(pred_obj_conf, target_obj_conf)
 
 
-        target_boxes = target[..., :B*5].view(-1, S, S, B, 5)
-        target_class = target[..., B*5:]
+        # ======================= #
+        #     NO OBJECT LOSS      #
+        # ======================= #
 
-        # Get the objectness score
-        obj_score = pred_boxes[..., 4]
-        target_obj_score = target_boxes[..., 4]
+        no_obj_mask = target_confidence == 0
+        pred_no_obj_conf = pred_boxes[no_obj_mask, ..., 1:5]
+        target_no_obj_conf = target_boxes[no_obj_mask, ..., 1:5]
+        no_object_loss = self.lambda_noobj * self.mse(pred_no_obj_conf, target_no_obj_conf)
 
-        # Find the responsible bounding box
-        obj_mask = target_obj_score > 0
-        noobj_mask = target_obj_score == 0
 
-        # Localization loss
-        loc_loss = self.lambda_coord * torch.sum(obj_mask * (torch.sum((pred_boxes[..., :4] - target_boxes[..., :4])**2, dim=-1)))
+        # ======================= #
+        #       CLASS LOSS        #
+        # ======================= #
 
-        # Confidence loss
-        conf_loss_obj = torch.sum(obj_mask * (obj_score - target_obj_score)**2)
-        conf_loss_noobj = self.lambda_noobj * torch.sum(noobj_mask * (obj_score - target_obj_score)**2)
-        conf_loss = conf_loss_obj + conf_loss_noobj
 
-        # Classification loss
-        class_loss = torch.sum(obj_mask.view(-1, S, S, 1).float() * (pred_class - target_class)**2)
+        # ======================= #
+        #       TOTAL LOSS        #
+        # ======================= #
 
-        total_loss = loc_loss + conf_loss + class_loss
+        total_loss = coord_loss + object_loss + no_object_loss
+
         return total_loss
 
-# Example usage:
-# Assuming predictions and target are your network's output and the ground truth respectively
-# predictions = torch.randn((batch_size, 7*7*(2*5 + 20)))
-# target = torch.randn((batch_size, 7*7*(2*5 + 20)))
-# criterion = YOLOLoss()
-# loss = criterion(predictions, target)
+
+
+
+label = torch.Tensor(([
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[1.0000, 1.0000, 0.6825, 0.5000, 0.1950, 1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [1.0000, 1.0000, 0.5000, 0.7434, 1.0000, 0.9305, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],  ]))
+
+
+
+criterium = YOLOLoss()
+
+criterium(label, label)
