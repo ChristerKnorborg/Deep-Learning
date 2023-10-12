@@ -24,7 +24,7 @@ def process_data():
         TRAIN: transforms.Compose([
             # First arguments for inital trainings
             #transforms.Resize(256),
-            #transforms.CenterCrop(256),
+            transforms.RandomCrop(256),
             
             #transforms.RandomResizedCrop(256),
             # Horizontally flip the image with probability 0.5
@@ -46,8 +46,10 @@ def process_data():
 
    # Use our custom DataSetCoco class
     image_datasets = {
-        TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
+        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
+        TRAIN: DataSetCoco(DataSetType.TRAIN),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION)
     }
 
     dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True)

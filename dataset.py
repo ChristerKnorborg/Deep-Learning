@@ -2,7 +2,7 @@ import json
 import os
 from random import random
 import shutil
-
+from torchvision import transforms
 from typing import Any
 import requests
 import zipfile
@@ -480,10 +480,8 @@ class DataSetCoco(Dataset):
 
 
 # TO ShOW LABELS FORMAT
-from torchvision import transforms
 
-
-# Create an instance of the DataSetCoco class for the TRAIN dataset
+'''# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
 
 # Fetch a sample by its index
@@ -495,7 +493,7 @@ print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['f
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
 coco_data.show_image_with_bboxes(index_to_test)
-
+'''
 
 
 

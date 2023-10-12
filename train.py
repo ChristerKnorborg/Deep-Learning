@@ -69,7 +69,7 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                     print(outputs)
                     print("LABELS")
                     print(labels.shape)
-                    print(labels)
+                    print(labels)   
 
                     loss = criterion(outputs, labels)
                     # print(loss)
