@@ -25,20 +25,22 @@ class YOLOLoss(nn.Module):
 
         # Bounding box coordinates
         pred_boxes = predictions[..., C:C+5*B].reshape(-1, S, S, B, 5) # index from C to C+5*B (C inclusive, C+5*B exclusive). E.g. bounding box coordinates
-        target_boxes = target[..., C:C+5*B].reshape(-1, S, S, B, 5) # index from C to C+5*B (C inclusive, C+5*B exclusive). E.g. get every bounding box per grid cell
+        target_boxes = target[..., C:C+5].reshape(-1, S, S, 1, 5) # index from C to C+5 (C inclusive, C+5 exclusive). E.g. get bounding box for grid cell
         
 
 
         # Separate the objectness scores for each bounding box. E.g. make a tensor of shape (batch_size, S, S, 1) where each entry 1 is the probability of the object being present in bouding box B
         pred_confidence1 = predictions[..., 1:2] # Extract index 1 from the last dimension of the tensor (P_c from bounding box 1)
         pred_confidence2 = predictions[..., 6:7] # Extract index 6 from the last dimension of the tensor (P_c from bounding box 2)
-
-        target_confidence1 = target[..., 1:2] # Extract index 1 from the last dimension of the tensor (P_c from bounding box 1)
-        target_confidence2 = target[..., 6:7] # Extract index 6 from the last dimension of the tensor (P_c from bounding box 2)
+        target_confidence = target[..., 1:2] # Extract index 1 (P_c) from the last dimension of the tensor-
+    
         
         print("pred_confidence1.shape", pred_confidence1.shape)
         print("pred_confidence1", pred_confidence1)
-        print("target_confidence1.shape", target_confidence1.shape)
+        print("pred_confidence2.shape", pred_confidence2.shape)
+        print("pred_confidence2", pred_confidence2)
+        print("target_confidence1.shape", target_confidence.shape)
+        print("target_confidence1", target_confidence)
 
         
         # Separate the components of the target tensor
@@ -47,66 +49,89 @@ class YOLOLoss(nn.Module):
         #   BOX COORDINATE LOSS   #
         # ======================= #
 
+        print("pred_boxes.shape", pred_boxes.shape)
+        print("pred_boxes", pred_boxes)
+        print("target_boxes.shape", target_boxes.shape)
+        print("target_boxes", target_boxes)
 
         # Determine which bounding box is responsible for the prediction
         pred_bboxes1 = pred_boxes[..., 0, 1:5] # Extract the coordinates from the first bounding boxes
         pred_bboxes2 = pred_boxes[..., 1, 1:5] # Extract the coordinates from the second bounding boxes
-        target_bboxes1 = target_boxes[..., 0, 1:5] # Extract the coordinates from the first bounding boxes
-        target_bboxes2 = target_boxes[..., 1, 1:5] # Extract the coordinates from the second bounding boxes
+        target_bboxes = target_boxes[..., 0, 1:5] # Extract the bounding boxes coordinates from the label
+    
 
         print("pred_bboxes1.shape", pred_bboxes1.shape)
         print("pred_bboxes1", pred_bboxes1)
+        print("target_bboxes.shape", target_bboxes.shape)
+        print("target_bboxes", target_bboxes)
 
         # Calculate the IoU for each bounding box in all grid cells
-        iou1 = IoU(pred_bboxes1, target_bboxes1) 
-        iou2 = IoU(pred_bboxes2, target_bboxes2)
+        IoU1 = IoU(pred_bboxes1, target_bboxes) 
+        IoU2 = IoU(pred_bboxes2, target_bboxes)
 
-        print("iou1.shape", iou1.shape)
-        print("iou1", iou1)
+        print("iou1.shape", IoU1.shape)
+        print("iou1", IoU1)
+        print("iou2.shape", IoU2.shape)
+        print("iou2", IoU2)
+
+         # Make a mask of shape (batch_size, S, S, 1) where each entry is True if the first bounding box is responsible for the prediction,
+         # and False if the second bounding box is responsible for the prediction
+        responsible_box_mask = IoU1 > IoU2
+
+        print("responsible_box_mask.shape", responsible_box_mask.shape)
+        print("responsible_box_mask", responsible_box_mask)
+        
+        # Make a tensor of shape (batch_size, S, S, 1) where each entry is the coordinates of the bounding box that is responsible for the prediction.
+        # E.g. some entries will be the coordinates of the first bounding box, and some entries will be the coordinates of the second bounding box
+        responsible_pred_boxes = torch.where(responsible_box_mask[..., None], pred_bboxes1, pred_bboxes2) # 
+
+        print("responsible_pred_boxes.shape", responsible_pred_boxes.shape)
+        print("responsible_pred_boxes", responsible_pred_boxes)
+        print("target_bboxes.shape", target_bboxes.shape)
+        print("target_bboxes", target_bboxes)
+        print("target_boxes.shape", target_boxes.shape)
+        print("target_boxes", target_boxes)
 
 
+        # Compute coordinate loss
+        
+        obj_mask = target_confidence > 0 # Object must also be present in the grid cell for the target label to be valid for loss
+        obj_mask = obj_mask.unsqueeze(0)
+        print("obj_mask.shape", obj_mask.shape)
+        print("obj_mask", obj_mask)
+        responsible_pred_coords = responsible_pred_boxes[obj_mask] 
+        target_coords = target_bboxes[obj_mask]
 
-        responsible_box_mask1 = iou1 > iou2 # Mask of shape (batch_size, S, S, 1) where each entry is 1 if the first bounding box is responsible for the prediction, 0 otherwise
-        responsible_box_mask2 = ~responsible_box_mask1 
+        
+        print("target_coords.shape", target_coords.shape)
+        print("target_coords", target_coords)
 
-        # Compute coordinate loss for bounding box 1
-        obj_mask1 = (target_confidence1 > 0) & responsible_box_mask1
-        pred_coords1 = pred_boxes[obj_mask1, ..., 0, 1:5]
-        target_coords1 = target_boxes[obj_mask1, ..., 0, 1:5]
+
 
         # Separate x, y, w, h
-        pred_x1, pred_y1, pred_w1, pred_h1 = torch.split(pred_coords1, 1, dim=-1)
-        target_x1, target_y1, target_w1, target_h1 = torch.split(target_coords1, 1, dim=-1)
+        pred_x, pred_y, pred_w, pred_h = torch.split(responsible_pred_coords, 1, dim=-1)
+        target_x, target_y, target_w, target_h = torch.split(target_coords, 1, dim=-1)
 
         # Compute losses
-        loss_x1 = self.mse(pred_x1, target_x1)
-        loss_y1 = self.mse(pred_y1, target_y1)
-        loss_w1 = self.mse(torch.sqrt(pred_w1), torch.sqrt(target_w1))
-        loss_h1 = self.mse(torch.sqrt(pred_h1), torch.sqrt(target_h1))
+        loss_x = self.mse(pred_x, target_x)
+        loss_y = self.mse(pred_y, target_y)
+        loss_w = self.mse(torch.sqrt(pred_w), torch.sqrt(target_w))
+        loss_h = self.mse(torch.sqrt(pred_h), torch.sqrt(target_h))
 
         # Combine the losses
-        coord_loss1 = loss_x1 + loss_y1 + loss_w1 + loss_h1
+        coord_loss = loss_x + loss_y + loss_w + loss_h
+        total_box_coordinate_loss = self.lambda_coord * coord_loss
 
-        # Compute coordinate loss for bounding box 2
-        obj_mask2 = (target_confidence2 > 0) & responsible_box_mask2
-        pred_coords2 = pred_boxes[obj_mask2, ..., 1, 1:5]
-        target_coords2 = target_boxes[obj_mask2, ..., 1, 1:5]
+        print("total_box_coordinate_loss", total_box_coordinate_loss)
+        print("total_box_coordinate_loss.shape", total_box_coordinate_loss.shape)
 
-        # Separate x, y, w, h
-        pred_x2, pred_y2, pred_w2, pred_h2 = torch.split(pred_coords2, 1, dim=-1)
-        target_x2, target_y2, target_w2, target_h2 = torch.split(target_coords2, 1, dim=-1)
 
-        # Compute losses
-        loss_x2 = self.mse(pred_x2, target_x2)
-        loss_y2 = self.mse(pred_y2, target_y2)
-        loss_w2 = self.mse(torch.sqrt(pred_w2), torch.sqrt(target_w2))
-        loss_h2 = self.mse(torch.sqrt(pred_h2), torch.sqrt(target_h2))
 
-        # Combine the losses
-        coord_loss2 = loss_x2 + loss_y2 + loss_w2 + loss_h2
+        print("responsible_box_mask.shape", responsible_box_mask.shape)
+        print("responsible_box_mask", responsible_box_mask)
+        print("responsible_pred_boxes.shape", responsible_pred_boxes.shape)
+        print("responsible_pred_boxes", responsible_pred_boxes)
 
-        # Sum up the losses and weight with lambda_coord
-        total_coord_loss = self.lambda_coord * (coord_loss1 + coord_loss2)
 
 
 
@@ -189,7 +214,7 @@ def IoU(box1, box2):
 
 
 
-label = torch.Tensor(([
+prediction = torch.Tensor(([
         [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
@@ -214,7 +239,7 @@ label = torch.Tensor(([
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
 
-        [[1.0000, 5.0000, 0.6825, 0.5000, 0.1950, 1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+        [[1.0000, 5.0000, 0.6825, 0.5000, 0.1950, 1.0000, 1.0000, 2.0000, 1.0000, 1.0000, 1.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [1.0000, 5.0000, 0.5000, 0.7434, 1.0000, 0.9305, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
@@ -246,8 +271,63 @@ label = torch.Tensor(([
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],  ]))
 
+label = torch.Tensor([[[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [1.0000, 3.0000, 0.0223, 0.5000, 0.5778, 1.0000],
+         [1.0000, 4.0000, 0.5000, 0.5000, 1.0000, 1.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
+
+        [[0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]]])
 
 
 criterium = YOLOLoss()
 
-criterium(label, label)
+criterium(prediction, label)

@@ -267,8 +267,8 @@ class DataSetCoco(Dataset):
 
 
 
-        # The image is divided into a grid of size S x S. For each bounding box 
-        label_tensor = torch.zeros((S, S, 5*B + C))
+        # The image is divided into a grid of size S x S. with each cell being of size C + 5, where C is the number of classes.
+        label_tensor = torch.zeros((S, S, 5 + C))
 
 
         # Convert COCO bounding boxes to YOLO format
@@ -300,36 +300,26 @@ class DataSetCoco(Dataset):
             y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
 
 
-            # Check which bounding box to use
-            if label_tensor[i, j, C] == 0:  # First bounding box is empty
-                box_index = C
-            elif label_tensor[i, j, C+5] == 0:  # Second bounding box is empty
-                box_index = C + 5
-            else:
-                # For now, overwrite the second box. Implement IoU later.
-                box_index = C + 5
-
-
 
             # Update cell values with the formula (C_1, C_2, ... , C_n, P_c, x, y, w, h), where C_i is the probability of the object being class i (Class score),
             # P_c is the probability of an object being present in the cell (Objectness score), and (x, y) are the coordinates of the midpoint of the bounding box relative to its grid cell, 
             # and (w, h) are the width and height of the bounding box relative to the whole image.
+
+            if label_tensor[i, j, C] == 0: # If there's no object in the cell yet
+                
+                # Assuming there's only one class ("person") for now. 
+                # We would meed to loop over classes and set them accordingly if there were more.
+                label_tensor[i, j, 0] = 1 # Class score for "person" (probability of the object being a "person")
+
+                # Set objectness score
+                label_tensor[i, j, C] = 1  # Objectness score
+
+                # Set bounding box attributes
+                label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
             
-            # Assuming there's only one class ("person") for now. 
-            # We would meed to loop over classes and set them accordingly if there were more.
-            label_tensor[i, j, 0] = 1 # Class score for "person" (probability of the object being a "person")
-
-            # Set objectness score
-            label_tensor[i, j, box_index] = 1  # Objectness score
-
-            # Set bounding box attributes
-            label_tensor[i, j, box_index + 1:box_index + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
-
-
-            # label_tensor[i, j, box_index:box_index+4] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
-            # label_tensor[i, j, box_index+4] = 1  # Objectness score. (probability that there's an object in the bounding box)
-            # label_tensor[i, j, 5*B] = 1  # Class score for "person" (probability of the object being a "person")
-            # # LAST LINE NEEDS TO BE CHANGED IF THERE ARE MORE CLASSES
+            else: 
+                # DECIDE WITH IoU Which BBOX TO CHOOSE for the cell
+                continue
 
         return img, label_tensor
     
