@@ -85,12 +85,12 @@ class YOLOLoss(nn.Module):
         loss_h = torch.sum(squared_diff_h)
 
         # Normalize the losses by the number of grid cells and number of bounding boxes
-        grid_cells = S * S
+        GRID_CELLS = S * S
 
-        loss_x = (1 / grid_cells) / B * loss_x
-        loss_y = (1 / grid_cells) / B * loss_y
-        loss_w = (1 / grid_cells) / B * loss_w
-        loss_h = (1 / grid_cells) / B * loss_h
+        loss_x = (1 / GRID_CELLS) / B * loss_x
+        loss_y = (1 / GRID_CELLS) / B * loss_y
+        loss_w = (1 / GRID_CELLS) / B * loss_w
+        loss_h = (1 / GRID_CELLS) / B * loss_h
 
         # Combine the losses
         coord_loss = loss_x + loss_y + loss_w + loss_h
@@ -103,19 +103,37 @@ class YOLOLoss(nn.Module):
         #       OBJECT LOSS       #
         # ======================= #
 
-        #pred_obj_conf = pred_boxes[obj_mask, ..., 1:5]
-        #target_obj_conf = target_boxes[obj_mask, ..., 1:5]
-        #object_loss = self.mse(pred_obj_conf, target_obj_conf)
+        # Get the predicted confidence scores for the bounding boxes responsible for the prediction
+        responsible_pred_conf = torch.where(responsible_box_mask[..., None], pred_confidence1, pred_confidence2)
 
+        # Only consider the boxes where an object is present in the target
+        object_present = target_confidence > 0
+        object_loss = torch.sum((responsible_pred_conf[object_present] - 1) ** 2)  # Ground truth is 1 for these boxes
+
+        # Normalize the object loss
+        object_loss = (1 / GRID_CELLS) / B * object_loss
+
+        print("object_loss", object_loss)
+        
 
         # ======================= #
         #     NO OBJECT LOSS      #
         # ======================= #
 
-        #no_obj_mask = target_confidence == 0
-        #pred_no_obj_conf = pred_boxes[no_obj_mask, ..., 1:5]
-        #target_no_obj_conf = target_boxes[no_obj_mask, ..., 1:5]
-        #no_object_loss = self.lambda_noobj * self.mse(pred_no_obj_conf, target_no_obj_conf)
+        # Consider boxes where the object is absent in the target
+        no_object_present = target_confidence == 0
+
+        # Loss for bounding boxes 1 and 2
+        no_object_loss1 = torch.sum((pred_confidence1[no_object_present] - 0) ** 2)  # Ground truth is 0 for these boxes
+        no_object_loss2 = torch.sum((pred_confidence2[no_object_present] - 0) ** 2)  # Ground truth is 0 for these boxes
+
+        # Combine the losses for bounding boxes 1 and 2
+        no_object_loss = no_object_loss1 + no_object_loss2
+
+        # Normalize the no object loss and apply the lambda_noobj weight
+        no_object_loss = self.lambda_noobj * (1 / GRID_CELLS) / B * no_object_loss
+
+        print("no_object_loss", no_object_loss)
 
 
         # ======================= #
@@ -127,9 +145,10 @@ class YOLOLoss(nn.Module):
         #       TOTAL LOSS        #
         # ======================= #
 
-        #total_loss = coord_loss + object_loss + no_object_loss
+        total_loss = total_box_coordinate_loss + object_loss + no_object_loss
 
-        #return total_loss
+        print("total_loss", total_loss)
+        return total_loss
 
 
 
