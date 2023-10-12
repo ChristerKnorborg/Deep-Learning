@@ -83,10 +83,10 @@ class YOLOLoss(nn.Module):
         
         # Make a tensor of shape (batch_size, S, S, 1) where each entry is the coordinates of the bounding box that is responsible for the prediction.
         # E.g. some entries will be the coordinates of the first bounding box, and some entries will be the coordinates of the second bounding box
-        responsible_pred_boxes = torch.where(responsible_box_mask[..., None], pred_bboxes1, pred_bboxes2) # 
+        responsible_pred_bboxes = torch.where(responsible_box_mask[..., None], pred_bboxes1, pred_bboxes2) # 
 
-        print("responsible_pred_boxes.shape", responsible_pred_boxes.shape)
-        print("responsible_pred_boxes", responsible_pred_boxes)
+        print("responsible_pred_bboxes.shape", responsible_pred_bboxes.shape)
+        print("responsible_pred_bboxes", responsible_pred_bboxes)
         print("target_bboxes.shape", target_bboxes.shape)
         print("target_bboxes", target_bboxes)
         print("target_boxes.shape", target_boxes.shape)
@@ -94,23 +94,26 @@ class YOLOLoss(nn.Module):
 
 
         # Compute coordinate loss
+        include_object = target_confidence > 0 # Object must also be present in the grid cell for the target label to be valid for loss
         
-        obj_mask = target_confidence > 0 # Object must also be present in the grid cell for the target label to be valid for loss
-        obj_mask = obj_mask.unsqueeze(0)
-        print("obj_mask.shape", obj_mask.shape)
-        print("obj_mask", obj_mask)
-        responsible_pred_coords = responsible_pred_boxes[obj_mask] 
-        target_coords = target_bboxes[obj_mask]
+        # responsible_pred_coords = responsible_pred_bboxes[include_object.unsqueeze(0)]
+        # responsible_target_coords = target_bboxes[include_object.unsqueeze(0)]
+        
+        print("responsible_pred_coords.shape", responsible_pred_coords.shape)
+        print("responsible_pred_coords", responsible_pred_coords)
+        # print("responsible_target_coords.shape", responsible_target_coords.shape)
+        # print("responsible_target_coords", responsible_target_coords)
 
-        
-        print("target_coords.shape", target_coords.shape)
-        print("target_coords", target_coords)
+
+        # Remove entries from the target tensor where the object is not present in the grid cell
+        target_boxes = target_boxes[include_object]
+
 
 
 
         # Separate x, y, w, h
         pred_x, pred_y, pred_w, pred_h = torch.split(responsible_pred_coords, 1, dim=-1)
-        target_x, target_y, target_w, target_h = torch.split(target_coords, 1, dim=-1)
+        target_x, target_y, target_w, target_h = torch.split(responsible_target_coords, 1, dim=-1)
 
         # Compute losses
         loss_x = self.mse(pred_x, target_x)
@@ -121,17 +124,6 @@ class YOLOLoss(nn.Module):
         # Combine the losses
         coord_loss = loss_x + loss_y + loss_w + loss_h
         total_box_coordinate_loss = self.lambda_coord * coord_loss
-
-        print("total_box_coordinate_loss", total_box_coordinate_loss)
-        print("total_box_coordinate_loss.shape", total_box_coordinate_loss.shape)
-
-
-
-        print("responsible_box_mask.shape", responsible_box_mask.shape)
-        print("responsible_box_mask", responsible_box_mask)
-        print("responsible_pred_boxes.shape", responsible_pred_boxes.shape)
-        print("responsible_pred_boxes", responsible_pred_boxes)
-
 
 
 
