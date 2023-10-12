@@ -1,4 +1,5 @@
 from yolo_v1 import Yolo_v1
+from loss import YOLOLoss
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -41,17 +42,8 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
             running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
-            i = 0
-
-            print("DATALOADERS")
-            print(dataloaders[phase])
-            
-
 
             for inputs, labels in dataloaders[phase]:
-                i += 1
-                if i == 10:
-                    break
 
                 
                 #print(inputs.shape)  # This should print something like [batch_size, 3, height, width]
@@ -111,7 +103,7 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
 model = Yolo_v1()
 model = model.to(DEVICE) # Use GPU if available
 
-criterion = nn.CrossEntropyLoss() # Loss function
+criterion = YOLOLoss() # Loss function
 optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9) # Observe that all parameters are being optimized
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
 
