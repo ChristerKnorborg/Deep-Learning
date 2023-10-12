@@ -94,19 +94,27 @@ class YOLOLoss(nn.Module):
 
 
         # Compute coordinate loss
-        include_object = target_confidence > 0 # Object must also be present in the grid cell for the target label to be valid for loss
-        
-        # responsible_pred_coords = responsible_pred_bboxes[include_object.unsqueeze(0)]
-        # responsible_target_coords = target_bboxes[include_object.unsqueeze(0)]
+        include_tensor = target_confidence > 0 # Object must also be present in the grid cell for the target label to be valid for loss
+        include_coords = torch.nonzero(include_tensor.squeeze(-1))
+        print("include_coords.shape", include_coords.shape)
+        print("include_coords", include_coords)
+
+        # Generate batch indices for each coordinate in include_coords
+        batch_size, _, _, _ = responsible_pred_bboxes.shape
+        batch_indices = torch.arange(batch_size).view(-1, 1).repeat(1, len(include_coords)).view(-1)
+
+        # Repeat the include_coords for each batch
+        repeated_coords = include_coords.repeat(batch_size, 1)
+
+        # Extract the values
+        responsible_pred_coords = responsible_pred_bboxes[batch_indices, repeated_coords[:, 0], repeated_coords[:, 1]]
+        responsible_target_coords = target_bboxes[batch_indices, repeated_coords[:, 0], repeated_coords[:, 1]]
+
         
         print("responsible_pred_coords.shape", responsible_pred_coords.shape)
         print("responsible_pred_coords", responsible_pred_coords)
-        # print("responsible_target_coords.shape", responsible_target_coords.shape)
-        # print("responsible_target_coords", responsible_target_coords)
-
-
-        # Remove entries from the target tensor where the object is not present in the grid cell
-        target_boxes = target_boxes[include_object]
+        print("responsible_target_coords.shape", responsible_target_coords.shape)
+        print("responsible_target_coords", responsible_target_coords)
 
 
 
@@ -115,15 +123,33 @@ class YOLOLoss(nn.Module):
         pred_x, pred_y, pred_w, pred_h = torch.split(responsible_pred_coords, 1, dim=-1)
         target_x, target_y, target_w, target_h = torch.split(responsible_target_coords, 1, dim=-1)
 
+
+        print("pred_x.shape", pred_x.shape)
+        print("pred_x", pred_x)
+        print("pred_y.shape", pred_y.shape)
+        print("pred_y", pred_y)
+        print("pred_w.shape", pred_w.shape)
+        print("pred_w", pred_w)
+        print("pred_h.shape", pred_h.shape)
+        print("pred_h", pred_h)
+        
         # Compute losses
         loss_x = self.mse(pred_x, target_x)
         loss_y = self.mse(pred_y, target_y)
         loss_w = self.mse(torch.sqrt(pred_w), torch.sqrt(target_w))
         loss_h = self.mse(torch.sqrt(pred_h), torch.sqrt(target_h))
 
+        print("loss_x", loss_x)
+        print("loss_y", loss_y)
+        print("loss_w", loss_w)
+        print("loss_h", loss_h)
+
         # Combine the losses
         coord_loss = loss_x + loss_y + loss_w + loss_h
         total_box_coordinate_loss = self.lambda_coord * coord_loss
+
+        print("total_box_coordinate_loss", total_box_coordinate_loss)
+
 
 
 
