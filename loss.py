@@ -29,13 +29,17 @@ class YOLOLoss(nn.Module):
         
 
 
-        # Separate the objectness scores for each bounding box. E.g. make a tensor of shape (batch_size, S, S, B, 1) where each entry 1 is the probability of the object being present in bouding box B
-        pred_confidence1 = predictions[..., 1:2] # Extract inde 1 from the last dimension of the tensor (P_c from bounding box 1)
-        pred_confidence2 = predictions[..., 6:7] # Extract inde 6 from the last dimension of the tensor (P_c from bounding box 2)
+        # Separate the objectness scores for each bounding box. E.g. make a tensor of shape (batch_size, S, S, 1) where each entry 1 is the probability of the object being present in bouding box B
+        pred_confidence1 = predictions[..., 1:2] # Extract index 1 from the last dimension of the tensor (P_c from bounding box 1)
+        pred_confidence2 = predictions[..., 6:7] # Extract index 6 from the last dimension of the tensor (P_c from bounding box 2)
 
-        target_confidence1 = target[..., 1:2] # Extract inde 1 from the last dimension of the tensor (P_c from bounding box 1)
-        target_confidence2 = target[..., 6:7] # Extract inde 6 from the last dimension of the tensor (P_c from bounding box 2)
+        target_confidence1 = target[..., 1:2] # Extract index 1 from the last dimension of the tensor (P_c from bounding box 1)
+        target_confidence2 = target[..., 6:7] # Extract index 6 from the last dimension of the tensor (P_c from bounding box 2)
         
+        print("pred_confidence1.shape", pred_confidence1.shape)
+        print("pred_confidence1", pred_confidence1)
+        print("target_confidence1.shape", target_confidence1.shape)
+
         
         # Separate the components of the target tensor
 
@@ -50,9 +54,17 @@ class YOLOLoss(nn.Module):
         target_bboxes1 = target_boxes[..., 0, 1:5] # Extract the coordinates from the first bounding boxes
         target_bboxes2 = target_boxes[..., 1, 1:5] # Extract the coordinates from the second bounding boxes
 
+        print("pred_bboxes1.shape", pred_bboxes1.shape)
+        print("pred_bboxes1", pred_bboxes1)
 
+        # Calculate the IoU for each bounding box in all grid cells
         iou1 = IoU(pred_bboxes1, target_bboxes1) 
         iou2 = IoU(pred_bboxes2, target_bboxes2)
+
+        print("iou1.shape", iou1.shape)
+        print("iou1", iou1)
+
+
 
         responsible_box_mask1 = iou1 > iou2 # Mask of shape (batch_size, S, S, 1) where each entry is 1 if the first bounding box is responsible for the prediction, 0 otherwise
         responsible_box_mask2 = ~responsible_box_mask1 
@@ -202,10 +214,10 @@ label = torch.Tensor(([
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
 
-        [[1.0000, 1.0000, 0.6825, 0.5000, 0.1950, 1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+        [[1.0000, 5.0000, 0.6825, 0.5000, 0.1950, 1.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
-         [1.0000, 1.0000, 0.5000, 0.7434, 1.0000, 0.9305, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+         [1.0000, 5.0000, 0.5000, 0.7434, 1.0000, 0.9305, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000],
          [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000]],
