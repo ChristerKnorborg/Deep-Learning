@@ -317,9 +317,29 @@ class DataSetCoco(Dataset):
                 # Set bounding box attributes
                 label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
             
-            else: 
-                # DECIDE WITH IoU Which BBOX TO CHOOSE for the cell
-                continue
+            else: # Choose the bounding box with the largest area
+                
+                # Get the current bounding box attributes
+                current_w = label_tensor[i, j, C + 3]
+                current_h = label_tensor[i, j, C + 4]
+
+                # Calculate the area of the current and new bounding box
+                current_area = current_w * current_h
+                new_area = w * h
+
+                # If the new bounding box has a larger area, replace the old bounding box with the new one
+                if new_area > current_area:
+
+                    # Assuming there's only one class ("person") for now. 
+                    # We would meed to loop over classes and set them accordingly if there were more.
+                    label_tensor[i, j, 0] = 1 # Class score for "person" (probability of the object being a "person")
+
+                    # Set objectness score
+                    label_tensor[i, j, C] = 1  # Objectness score
+
+                    # Set bounding box attributes
+                    label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+                
 
         return img, label_tensor
     
@@ -470,6 +490,31 @@ class DataSetCoco(Dataset):
 
 
     
+
+def compute_iou(bbox, cell_bbox):
+    # Given a bounding box and a cell, compute the IoU
+
+    # Convert bounding boxes to [xmin, ymin, xmax, ymax] format
+    bbox = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
+
+    # Calculate intersection coordinates
+    inter_x1 = max(bbox[0], cell_bbox[0])
+    inter_y1 = max(bbox[1], cell_bbox[1])
+    inter_x2 = min(bbox[2], cell_bbox[2])
+    inter_y2 = min(bbox[3], cell_bbox[3])
+
+    # Calculate intersection area
+    inter_area = max(inter_x2 - inter_x1, 0) * max(inter_y2 - inter_y1, 0)
+    
+    # Calculate union area
+    bbox_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+    cell_area = (cell_bbox[2] - cell_bbox[0]) * (cell_bbox[3] - cell_bbox[1])
+    union_area = bbox_area + cell_area - inter_area
+    
+    # Calculate IoU
+    iou = inter_area / union_area
+
+    return iou
 
 
 
