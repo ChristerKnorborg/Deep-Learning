@@ -88,7 +88,7 @@ class YOLOLoss(nn.Module):
         coord_loss = loss_x + loss_y + loss_w + loss_h
         total_box_coordinate_loss = self.lambda_coord * coord_loss
 
-        print("total_box_coordinate_loss", total_box_coordinate_loss)
+        #print("total_box_coordinate_loss", total_box_coordinate_loss)
 
 
         # ======================= #
@@ -102,7 +102,7 @@ class YOLOLoss(nn.Module):
         object_present = target_confidence > 0
         object_loss = torch.sum((responsible_pred_conf[object_present] - 1) ** 2)  # Ground truth is 1 for these boxes
 
-        print("object_loss", object_loss)
+        #print("object_loss", object_loss)
         
 
         # ======================= #
@@ -119,7 +119,7 @@ class YOLOLoss(nn.Module):
         # Combine the losses for bounding boxes 1 and 2
         no_object_loss = self.lambda_noobj * (no_object_loss1 + no_object_loss2)
 
-        print("no_object_loss", no_object_loss)
+        #print("no_object_loss", no_object_loss)
 
 
         # ======================= #
@@ -133,7 +133,7 @@ class YOLOLoss(nn.Module):
 
         total_loss = total_box_coordinate_loss + object_loss + no_object_loss
 
-        print("total_loss", total_loss)
+        #print("total_loss", total_loss)
         return total_loss
 
 

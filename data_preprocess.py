@@ -23,8 +23,8 @@ def process_data():
     data_transforms = {
         TRAIN: transforms.Compose([
             # First arguments for inital trainings
-            #transforms.Resize(256),
-            transforms.RandomCrop(256),
+            transforms.Resize(256),
+            #transforms.RandomCrop(256),
             
             #transforms.RandomResizedCrop(256),
             # Horizontally flip the image with probability 0.5
@@ -33,12 +33,12 @@ def process_data():
             #transforms.ColorJitter(brightness=0.1),
             # Randomly rotate images in the range (degrees, 0 to 180)
             #transforms.RandomRotation(degrees=10),
-            transforms.ToTensor(),
+            #transforms.ToTensor(),
             # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         VALIDATION: transforms.Compose([
-            #transforms.Resize(256),
-            #transforms.CenterCrop(256),
+            transforms.RandomCrop(256),
+            transforms.Resize(256),
             #transforms.ToTensor()
             # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
@@ -46,9 +46,9 @@ def process_data():
 
    # Use our custom DataSetCoco class
     image_datasets = {
-        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        TRAIN: DataSetCoco(DataSetType.TRAIN),
+        #TRAIN: DataSetCoco(DataSetType.TRAIN),
         VALIDATION: DataSetCoco(DataSetType.VALIDATION)
     }
 

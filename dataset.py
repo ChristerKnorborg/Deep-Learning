@@ -351,8 +351,20 @@ class DataSetCoco(Dataset):
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
         bounding_boxes = []
 
-        # Randomly choose a top-left corner for cropping
+        # Determine crop dimensions
         width, height = size
+    
+        # If the image dimensions are smaller than crop dimensions, pad the image
+        if img.shape[1] < height or img.shape[2] < width:
+            padding_top = max(0, (height - img.shape[1]) // 2)
+            padding_bottom = max(0, height - img.shape[1] - padding_top)
+            padding_left = max(0, (width - img.shape[2]) // 2)
+            padding_right = max(0, width - img.shape[2] - padding_left)
+            
+            img = torch.nn.functional.pad(img, (padding_left, padding_right, padding_top, padding_bottom), mode='constant', value=0)
+
+
+        # Randomly choose a top-left corner for cropping
         max_x = img.shape[2] - width
         max_y = img.shape[1] - height
         x1 = random.randint(0, max_x)
