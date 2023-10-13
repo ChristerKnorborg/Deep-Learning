@@ -52,7 +52,7 @@ def process_data():
         VALIDATION: DataSetCoco(DataSetType.VALIDATION)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=4, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification

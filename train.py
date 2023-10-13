@@ -116,17 +116,22 @@ def compute_accuracy(preds, labels):
 
 
 
-def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
+def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25, print_every=5):
 
+    
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
     dataloaders, image_datasets = process_data()
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
+    
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
+        
+
+            
 
 
         for phase in [TRAIN, VALIDATION]:
@@ -134,9 +139,9 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 model.train()
             else:
                 model.eval()
-
+            
             # Initialize to 0. E.g. running_corrects = 0 will not work due to type mismatch in double
-            #running_corrects: torch.Tensor = torch.tensor(0)
+            # running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
             all_correct = 0
@@ -145,14 +150,18 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
             all_other = 0
             all_background = 0
 
-
+            iteration = 0
             for inputs, labels in dataloaders[phase]:
+
+                iteration += 1
+                if iteration % print_every == 0:
+                    print(f"Iteration {iteration}")
 
                 inputs = inputs.to(DEVICE) 
                 labels = labels.to(DEVICE)
-                
+
                 optimizer.zero_grad()
-                
+
                 with torch.set_grad_enabled(phase == TRAIN):
 
                     outputs = model(inputs)
@@ -172,8 +181,6 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                         scheduler.step() # Decay learning rate by a factor of 0.1 every 7 epochs (Comes after optimizer)
                 
                 # statistics
-
-                
                 running_loss += loss.item() * inputs.size(0)
                 
             epoch_loss = running_loss / dataset_sizes[phase]
