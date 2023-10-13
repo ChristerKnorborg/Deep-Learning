@@ -117,7 +117,7 @@ class YOLOLoss(nn.Module):
         no_object_loss2 = torch.sum((pred_confidence2[no_object_present] - 0) ** 2)  # Ground truth is 0 for these boxes
 
         # Combine the losses for bounding boxes 1 and 2
-        no_object_loss = no_object_loss1 + no_object_loss2
+        no_object_loss = self.lambda_noobj * (no_object_loss1 + no_object_loss2)
 
         print("no_object_loss", no_object_loss)
 
