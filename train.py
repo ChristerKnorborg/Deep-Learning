@@ -1,3 +1,4 @@
+import csv
 from yolo_v1 import Yolo_v1
 from loss import YOLOLoss
 import torch
@@ -13,6 +14,11 @@ import copy
 from dataset import TRAIN, VALIDATION
 from yolo_v1 import Yolo_v1 
 from model_constants import S, B, C
+import copy
+import pickle
+import matplotlib.pyplot as plt
+
+
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
@@ -116,8 +122,7 @@ def compute_accuracy(preds, labels):
 
 
 
-def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
-
+def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=25):
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -125,17 +130,15 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
     dataloaders, image_datasets = process_data()
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
+    # Dictionaries to store metrics for each epoch
+    losses = {"train": [], "val": []}
+    metrics = {"train": {}, "val": {}}
     
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
         
-
-            
-
-
         for phase in [TRAIN, VALIDATION]:
-            
             if phase == TRAIN:
                 print('Training phase:')
                 model.train()
@@ -143,8 +146,6 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 print('Validation phase:')
                 model.eval()
             
-            # Initialize to 0. E.g. running_corrects = 0 will not work due to type mismatch in double
-            # running_corrects: torch.Tensor = torch.tensor(0)
             running_loss = 0.0
 
             all_correct = 0
@@ -165,7 +166,6 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == TRAIN):
-
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
                    
@@ -178,13 +178,17 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                     all_background += background
 
                     if phase == TRAIN:
-                        loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
+                        loss.backward()
                         optimizer.step()
-                        #scheduler.step() # Decay learning rate by a factor of 0.1 every 7 epochs (Comes after optimizer)
                 
+                print("loss: ", loss.item())
+                #print("inputs size: ", inputs.size(0))
+
+
                 # statistics
-                running_loss += loss.item() * inputs.size(0)
+                running_loss += loss.item() # * inputs.size(0) is removed because YOLOLoss already sums over the batch
                 
+                print("running loss: ", running_loss)
             epoch_loss = running_loss / dataset_sizes[phase]
 
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
@@ -194,8 +198,16 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
             print(f"{phase} Other Errors: {all_other}")
             print(f"{phase} Background Predictions: {all_background}")
 
-            # Here we will use all_correct as the metric for determining the best model. 
-            # This can be adjusted depending on the needs.
+            # Save the metrics for this epoch
+            losses[phase].append(epoch_loss)
+            metrics[phase][epoch] = {
+                "correct": all_correct,
+                "localization": all_localization,
+                "similar": all_similar,
+                "other": all_other,
+                "background": all_background
+            }
+            
             epoch_acc = all_correct / dataset_sizes[phase]
 
             # Deep copy the model
@@ -203,8 +215,45 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-    # Load the best model's weights and return
-    model.load_state_dict(best_model_wts)
+
+
+
+        # After each epoch, save the metrics to a file
+        with open("training_metrics.csv", "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Epoch", "Train_Loss", "Validation_Loss"])
+            for epoch in range(num_epochs):
+                writer.writerow([epoch, losses["train"][epoch], losses["val"][epoch]])
+
+
+
+    # After all epochs, plot running loss and pie chart for last epoch
+    plt.figure(figsize=(12,5))
+    
+    # Plotting loss
+    plt.subplot(1, 2, 1)
+    plt.plot(losses[TRAIN], label="Training Loss")
+    plt.plot(losses[VALIDATION], label="Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Running Loss Over Epochs")
+    plt.legend()
+    
+    # Plotting pie chart
+    last_epoch_metrics = metrics[VALIDATION][num_epochs-1]
+    labels = last_epoch_metrics.keys()
+    sizes = [last_epoch_metrics[k] for k in labels]
+    
+    plt.subplot(1, 2, 2)
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%')
+    plt.title("Error Distribution in Last Epoch")
+    
+    plt.tight_layout()
+    plt.show()
+
+    # Saving the best model
+    torch.save(best_model_wts, "best_model_weights.pth")
+
     return model
 
 

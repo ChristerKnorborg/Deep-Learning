@@ -52,7 +52,10 @@ class DataSetCoco(Dataset):
 
 
         self.transform = transform
-        self.ids = list(self.coco.imgs.keys())
+
+        person_category_ids = self.coco.getCatIds(catNms=['person'])
+        self.ids = self.coco.getImgIds(catIds=person_category_ids)
+        #self.ids = list(self.coco.imgs.keys())
 
         self.save_crop = save_crop # If True, saves the last crop coordinates to self.last_crop_coordinates
         self.last_crop_coordinates = [] # Stores the last crop coordinates if save_crop is True
@@ -216,8 +219,8 @@ class DataSetCoco(Dataset):
 
     def __len__(self):
         """Returns the total number of samples in the dataset."""
-        return len(self.coco.getImgIds())
-
+        # Changed from len(self.coco.imgs) to len(self.ids) to account for the fact that we're only using images with persons in them
+        return len(self.ids) 
 
 
     
