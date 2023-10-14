@@ -116,7 +116,7 @@ def compute_accuracy(preds, labels):
 
 
 
-def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25, print_every=5):
+def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25):
 
     
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -135,9 +135,12 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25, print_
 
 
         for phase in [TRAIN, VALIDATION]:
+            
             if phase == TRAIN:
+                print('Training phase:')
                 model.train()
             else:
+                print('Validation phase:')
                 model.eval()
             
             # Initialize to 0. E.g. running_corrects = 0 will not work due to type mismatch in double
@@ -150,12 +153,11 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25, print_
             all_other = 0
             all_background = 0
 
-            iteration = 0
-            for inputs, labels in dataloaders[phase]:
+            # Print progress within an epoch
+            total_batches = len(dataloaders[phase]) 
 
-                iteration += 1
-                if iteration % print_every == 0:
-                    print(f"Iteration {iteration}")
+            for iteration, (inputs, labels) in enumerate(dataloaders[phase], start=1):
+                print(f"\rProcessing batch {iteration}/{total_batches}", end="")
 
                 inputs = inputs.to(DEVICE) 
                 labels = labels.to(DEVICE)
@@ -178,7 +180,7 @@ def train(model: Yolo_v1, criterion, optimizer, scheduler, num_epochs=25, print_
                     if phase == TRAIN:
                         loss.backward() # Backpropagation (luckily, PyTorch does this automatically for us)
                         optimizer.step()
-                        scheduler.step() # Decay learning rate by a factor of 0.1 every 7 epochs (Comes after optimizer)
+                        #scheduler.step() # Decay learning rate by a factor of 0.1 every 7 epochs (Comes after optimizer)
                 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
@@ -212,7 +214,7 @@ model = Yolo_v1()
 model = model.to(DEVICE) # Use GPU if available
 
 criterion = YOLOLoss() # Loss function
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9) # Observe that all parameters are being optimized
+optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9) # Observe that all parameters are being optimized
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
 
 model = train(model, criterion, optimizer, exp_lr_scheduler, num_epochs=5)

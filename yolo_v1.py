@@ -14,7 +14,8 @@ class Yolo_v1(nn.Module):
         super(Yolo_v1, self).__init__()
 
         # Our encoder is a pretrained ResNet-50
-        resnet_layers = models.resnet50(weights=ResNet50_Weights.DEFAULT) # Load pretrained resnet50 model
+        #resnet_layers = models.resnet50(weights=ResNet50_Weights.DEFAULT) # Load pretrained resnet50 model
+        resnet_layers = models.resnet18(pretrained=True) # Use ResNet-18 as the encoder
         self.encoder = torch.nn.Sequential(*(list(resnet_layers.children())[:-1])) # Remove remove fc layer to get encoder only
         
         # Print the encoder architecture
@@ -26,7 +27,10 @@ class Yolo_v1(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Flatten(),
-            self._make_linear_with_xavier(2048, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+            nn.BatchNorm1d(512),
+            self._make_linear_with_xavier(512, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+            #self._make_linear_with_xavier(2048, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+            nn.BatchNorm1d(512),
             nn.LeakyReLU(0.1), # 0.1 is used in the paper
             # nn.Dropout(0.5), # Optional: for regularization
             self._make_linear_with_xavier(512, prediction_tensor),
@@ -62,9 +66,7 @@ class Yolo_v1(nn.Module):
     def _make_linear_with_xavier(self, in_features, out_features):
         layer = nn.Linear(in_features, out_features)
         init.xavier_uniform_(layer.weight)
+        init.constant_(layer.bias, 0)
         return layer
-        # Print the decoder architecture
-        '''print("Decoder: \n")
-        print(self.fc)'''
 
 

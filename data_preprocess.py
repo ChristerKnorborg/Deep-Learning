@@ -39,20 +39,20 @@ def process_data():
         VALIDATION: transforms.Compose([
             transforms.RandomCrop(256),
             transforms.Resize(256),
-            #transforms.ToTensor()
+            # transforms.ToTensor()
             # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
     }
 
    # Use our custom DataSetCoco class
     image_datasets = {
-        TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        #TRAIN: DataSetCoco(DataSetType.TRAIN),
+        TRAIN: DataSetCoco(DataSetType.TRAIN),
         VALIDATION: DataSetCoco(DataSetType.VALIDATION)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification
