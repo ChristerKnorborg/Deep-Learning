@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from random import random
@@ -349,14 +350,17 @@ class DataSetCoco(Dataset):
 
 
 
-    def crop_image(self, img: torch.Tensor, annotations, size=(256, 256)):
+    def crop_image(self, img: torch.Tensor, annotations, size=(512, 512)):
+        # Deep copy the annotations to avoid modifying the original
+        annotations = copy.deepcopy(annotations)
+        
         # Get the category ID for "person"
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
         bounding_boxes = []
 
         # Determine crop dimensions
         width, height = size
-    
+        
         # If the image dimensions are smaller than crop dimensions, pad the image
         if img.shape[1] < height or img.shape[2] < width:
             padding_top = max(0, (height - img.shape[1]) // 2)
@@ -366,6 +370,11 @@ class DataSetCoco(Dataset):
             
             img = torch.nn.functional.pad(img, (padding_left, padding_right, padding_top, padding_bottom), mode='constant', value=0)
 
+            # Adjust bounding boxes based on the padding
+            for ann in annotations:
+                if ann['category_id'] == person_cat_id:
+                    ann['bbox'][0] += padding_left
+                    ann['bbox'][1] += padding_top
 
         # Randomly choose a top-left corner for cropping
         max_x = img.shape[2] - width
@@ -381,38 +390,29 @@ class DataSetCoco(Dataset):
         elif self.save_crop:
             x1, y1, x2, y2 = self.last_crop_coordinates
 
-
         # Crop the image
         new_img = img[:, y1:y2, x1:x2]
-
-
 
         # Define the corners for the crop
         crop_top_left = (x1, y1)
         crop_top_right = (x2, y1)
         crop_bottom_left = (x1, y2)
         crop_bottom_right = (x2, y2)
-
         
-
-
         for ann in annotations:
             bbox = ann['bbox']
             if ann['category_id'] == person_cat_id:
-
-
                 # Define the corners for the bounding box
                 bbox_top_left = (bbox[0], bbox[1])
                 bbox_top_right = (bbox[0] + bbox[2], bbox[1])
                 bbox_bottom_left = (bbox[0], bbox[1] + bbox[3])
                 bbox_bottom_right = (bbox[0] + bbox[2], bbox[1] + bbox[3])
 
-
                 # Check intersection
                 intersects = (bbox_top_left[0] < crop_bottom_right[0] and
-                              bbox_bottom_right[0] > crop_top_left[0] and
-                              bbox_top_left[1] < crop_bottom_right[1] and
-                              bbox_bottom_right[1] > crop_top_left[1])
+                            bbox_bottom_right[0] > crop_top_left[0] and
+                            bbox_top_left[1] < crop_bottom_right[1] and
+                            bbox_bottom_right[1] > crop_top_left[1])
                 if intersects:
                     # Adjust the bounding box to fit within the cropped region
                     clipped_x1 = max(bbox[0], x1)
@@ -423,8 +423,9 @@ class DataSetCoco(Dataset):
                     # Convert clipped coordinates back to width/height format and adjust for new origin
                     new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
                     bounding_boxes.append(new_bbox)
-                
+                    
         return new_img, bounding_boxes
+
 
 
 
@@ -541,11 +542,11 @@ def compute_iou(bbox, cell_bbox):
 
 # TO ShOW LABELS FORMAT
 
-'''# Create an instance of the DataSetCoco class for the TRAIN dataset
+# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
 
 # Fetch a sample by its index
-index_to_test = 3 # You can change this to any valid index
+index_to_test = 0 # You can change this to any valid index
 img, yolo_targets = coco_data.__getitem__(index_to_test)
 
 # print image name:
@@ -553,7 +554,7 @@ print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['f
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
 coco_data.show_image_with_bboxes(index_to_test)
-'''
+
 
 
 
