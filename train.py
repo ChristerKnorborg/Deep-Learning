@@ -180,15 +180,11 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=
                     if phase == TRAIN:
                         loss.backward()
                         optimizer.step()
-                
-                print("loss: ", loss.item())
-                #print("inputs size: ", inputs.size(0))
 
 
                 # statistics
                 running_loss += loss.item() # * inputs.size(0) is removed because YOLOLoss already sums over the batch
                 
-                print("running loss: ", running_loss)
             epoch_loss = running_loss / dataset_sizes[phase]
 
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
