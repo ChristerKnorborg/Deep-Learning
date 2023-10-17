@@ -37,7 +37,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType, transform = None, save_crop = False):
+    def __init__(self, datatype: DataSetType, transform = None, save_crop = False, subset_size = None):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -57,6 +57,10 @@ class DataSetCoco(Dataset):
         person_category_ids = self.coco.getCatIds(catNms=['person'])
         self.ids = self.coco.getImgIds(catIds=person_category_ids)
         #self.ids = list(self.coco.imgs.keys())
+
+        # Reduce the dataset size if subset_size is set
+        if subset_size is not None and subset_size < len(self.ids):
+            self.ids = random.sample(self.ids, subset_size)
 
         self.save_crop = save_crop # If True, saves the last crop coordinates to self.last_crop_coordinates
         self.last_crop_coordinates = [] # Stores the last crop coordinates if save_crop is True
@@ -540,7 +544,7 @@ def compute_iou(bbox, cell_bbox):
 # TO ShOW LABELS FORMAT
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
+'''coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
 
 # Fetch a sample by its index
 index_to_test = 0 # You can change this to any valid index
@@ -550,7 +554,7 @@ img, yolo_targets = coco_data.__getitem__(index_to_test)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)
+coco_data.show_image_with_bboxes(index_to_test)'''
 
 
 

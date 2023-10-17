@@ -122,7 +122,41 @@ def compute_accuracy(preds, labels):
 
 
 
-def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=25):
+
+def plot_training_results(losses, metrics, num_epochs):
+    plt.figure(figsize=(12,5))
+    
+    # Plotting loss
+    plt.subplot(1, 2, 1)
+    plt.plot(losses[TRAIN], label="Training Loss")
+    plt.plot(losses[VALIDATION], label="Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Running Loss Over Epochs")
+    plt.legend()
+    
+    # Plotting pie chart for error distribution
+    last_epoch_metrics = metrics[VALIDATION][num_epochs-1]
+    labels = last_epoch_metrics.keys()
+    sizes = [last_epoch_metrics[k] for k in labels]
+    
+    plt.subplot(1, 2, 2)
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%')
+    plt.title("Error Distribution in Last Epoch")
+    
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+    
+
+
+
+
+
+def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25):
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -131,8 +165,16 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
     # Dictionaries to store metrics for each epoch
-    losses = {"train": [], "val": []}
-    metrics = {"train": {}, "val": {}}
+    losses = {TRAIN: [], VALIDATION: []}
+    metrics = {TRAIN: {}, VALIDATION: {}}
+
+
+    # Open the CSV file once before you start the epochs.
+    csv_file = open("training_metrics.csv", "w", newline='')
+    writer = csv.writer(csv_file)
+    writer.writerow(["Epoch", "Train_Loss", "Validation_Loss"]) # Write the header row.
+
+
     
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -184,7 +226,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=
 
                 # statistics
                 running_loss += loss.item() # * inputs.size(0) is removed because YOLOLoss already sums over the batch
-                
+
             epoch_loss = running_loss / dataset_sizes[phase]
 
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
@@ -213,44 +255,22 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler, num_epochs=
 
 
 
-
-        # After each epoch, save the metrics to a file
-        with open("training_metrics.csv", "w", newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Epoch", "Train_Loss", "Validation_Loss"])
-            for epoch in range(num_epochs):
-                writer.writerow([epoch, losses["train"][epoch], losses["val"][epoch]])
+        writer.writerow([epoch, losses[TRAIN][-1], losses[VALIDATION][-1]])  # write the most recent losses after each epoch
 
 
 
-    # After all epochs, plot running loss and pie chart for last epoch
-    plt.figure(figsize=(12,5))
-    
-    # Plotting loss
-    plt.subplot(1, 2, 1)
-    plt.plot(losses[TRAIN], label="Training Loss")
-    plt.plot(losses[VALIDATION], label="Validation Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.title("Running Loss Over Epochs")
-    plt.legend()
-    
-    # Plotting pie chart
-    last_epoch_metrics = metrics[VALIDATION][num_epochs-1]
-    labels = last_epoch_metrics.keys()
-    sizes = [last_epoch_metrics[k] for k in labels]
-    
-    plt.subplot(1, 2, 2)
-    plt.pie(sizes, labels=labels, autopct='%1.1f%%')
-    plt.title("Error Distribution in Last Epoch")
-    
-    plt.tight_layout()
-    plt.show()
 
-    # Saving the best model
-    torch.save(best_model_wts, "best_model_weights.pth")
+    csv_file.close()
+    torch.save(best_model_wts, "best_model_weights.pth") # Saving the best model
 
-    return model
+
+    # Plotting the training results
+    plot_training_results(losses, metrics, num_epochs)
+
+
+
+
+
 
 
 
@@ -259,7 +279,7 @@ model = Yolo_v1()
 model = model.to(DEVICE) # Use GPU if available
 
 criterion = YOLOLoss() # Loss function
-optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9) # Observe that all parameters are being optimized
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
+optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9) # Observe that all parameters are being optimized
+#exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
 
-model = train(model, criterion, optimizer, exp_lr_scheduler, num_epochs=5)
+model = train(model, criterion, optimizer, num_epochs=25)
