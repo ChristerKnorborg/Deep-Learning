@@ -28,6 +28,9 @@ from model_constants import S, B, C # Import grid dimension S = 7, Bounding boxe
 
 
 
+
+
+
 # Define the DataSetType enum
 class DataSetType(Enum):
     TRAIN = "./data/train2017", "./data/labels/annotations/instances_train2017.json"
@@ -37,7 +40,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType, transform = None, save_crop = False, subset_size = None):
+    def __init__(self, datatype: DataSetType, subset_size = None, training = False, save_crop = False):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -51,8 +54,7 @@ class DataSetCoco(Dataset):
         self.coco = COCO(self.ann_file) 
         self.move_images_with_persons_to_person_dir # Move images with persons to the 'person' directory (if not already done)
 
-
-        self.transform = transform
+        self.training = training
 
         person_category_ids = self.coco.getCatIds(catNms=['person'])
         self.ids = self.coco.getImgIds(catIds=person_category_ids)
@@ -251,28 +253,28 @@ class DataSetCoco(Dataset):
             image_path = os.path.join(self.img_dir, 'person', path)
 
         
-        img = Image.open(image_path).convert('RGB')
-
-        # Convert the PIL Image to a tensor
-        to_tensor = transforms.ToTensor()
-        img = to_tensor(img)
-
-        # Crop the image
-        img, bounding_boxes = self.crop_image(img, annotations)
-
-        original_img_width, original_img_height = img.shape[1:3]
-
-        if self.transform is not None:
-            img= self.transform(img)
-
-        img_height, img_width = img.shape[1:3]  # Get the width and height after transforming the image (now in tensor format)
+        img = Image.open(image_path).convert('RGB') # Open the image using PIL
+        img = transforms.ToTensor()(img) # Convert the PIL Image to a tensor
 
 
+        # Extract bounding boxes from the annotations. We only use bounding boxes for the "person" class
+        bounding_boxes = []
+        for ann in annotations:
+            if 'bbox' in ann and ann['category_id'] == self.coco.getCatIds(catNms=["person"])[0]: # Check if it's a "person"
+                bbox = ann['bbox']
+                bounding_boxes.append([bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]) # Convert [x, y, width, height] to [x1, y1, x2, y2] format
+            
 
-        # Calculate scaling factors
-        width_scale = img_width / original_img_width
-        height_scale = img_height / original_img_height
 
+        img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly (This need to be done to make dimensions the same (256x256) for all images))
+
+        # If training, apply data augmentation
+        if self.training:
+            img = self.color_image(img) # Apply color augmentation
+            img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize the image randomly between 0.8 and 1.2 times its original size
+
+
+        img_height, img_width = img.shape[1:3]  # Get the width and height (after transforming the image if training)
 
 
         # The image is divided into a grid of size S x S. with each cell being of size C + 5, where C is the number of classes.
@@ -281,13 +283,6 @@ class DataSetCoco(Dataset):
 
         # Convert COCO bounding boxes to YOLO format
         for bbox in bounding_boxes:
-            # Only create labels for category that matches the "person" class
-
-            # Adjust for resizing
-            bbox[0] *= width_scale
-            bbox[1] *= height_scale
-            bbox[2] *= width_scale
-            bbox[3] *= height_scale
 
             # Find midpoint coordinate (x, y) of bounding box
             x_center = bbox[0] + bbox[2] / 2
@@ -361,26 +356,35 @@ class DataSetCoco(Dataset):
 
 
     def crop_image(self, img: torch.Tensor, original_annotations, size=(512, 512)):
+
+
+        original_height, original_width = img.shape[1:3]
+        chosen_dim = random.choice([original_height, original_width])  # Chose to use original width or original height randomly for new size
+        scale_factor = random.uniform(0.8, 1.2) # Calculate a random scale factor between 0.8 and 1.2
+
+        new_size = (int(chosen_dim * scale_factor), int(chosen_dim * scale_factor)) # Calculate the new size
         # Determine crop dimensions
-        width, height = size
+        new_width, new_height = new_size
+
+        # Chosen
         
         # If the image dimensions are smaller than crop dimensions, pad the image
         padding_top = padding_bottom = padding_left = padding_right = 0
-        if img.shape[1] < height or img.shape[2] < width:
-            padding_top = max(0, (height - img.shape[1]) // 2)
-            padding_bottom = max(0, height - img.shape[1] - padding_top)
-            padding_left = max(0, (width - img.shape[2]) // 2)
-            padding_right = max(0, width - img.shape[2] - padding_left)
+        if img.shape[1] < new_height or img.shape[2] < new_width:
+            padding_top = max(0, (new_height - img.shape[1]) // 2)
+            padding_bottom = max(0, new_height - img.shape[1] - padding_top)
+            padding_left = max(0, (new_width - img.shape[2]) // 2)
+            padding_right = max(0, new_width - img.shape[2] - padding_left)
             
             img = torch.nn.functional.pad(img, (padding_left, padding_right, padding_top, padding_bottom), mode='constant', value=0)
         
         # Randomly choose a top-left corner for cropping
-        max_x = img.shape[2] - width
-        max_y = img.shape[1] - height
+        max_x = img.shape[2] - new_width
+        max_y = img.shape[1] - new_height
         x1 = random.randint(0, max_x)
         y1 = random.randint(0, max_y)
-        x2 = x1 + width
-        y2 = y1 + height
+        x2 = x1 + new_width
+        y2 = y1 + new_height
 
         # Save crop coordinates if save_crop flag is set and they are not already saved.
         if self.save_crop and not self.last_crop_coordinates:
@@ -430,6 +434,69 @@ class DataSetCoco(Dataset):
 
 
 
+    def color_image(self, img):
+        """
+        Apply color augmentation to the image.
+
+        Args:
+        img (PIL Image or Tensor): Image to be augmented.
+
+        Returns:
+        Tensor: Augmented image.
+        """
+        color_transforms = transforms.ColorJitter(
+            brightness=(0.9, 1.1),
+            contrast=(0.9, 1.1),
+            saturation=(0.9, 1.1),
+            hue=(-0.1, 0.1)
+        )
+        img = color_transforms(img)
+        return img
+    
+
+
+    def resize_image(self, img, bounding_boxes):
+        """
+        Resize the image randomly between 0.8 and 1.2 times its original size and adjust the bounding boxes accordingly.
+
+        Args:
+        img (PIL Image or Tensor): Image to be resized.
+        bounding_boxes (list): List of bounding boxes present in the image.
+
+        Returns:
+        Tuple[Tensor, list]: Resized image and the adjusted list of bounding boxes.
+        """
+        # Store original dimensions for scaling calculation
+        original_img_height, original_img_width = img.shape[1:3]
+
+        # Calculate random resize factor
+        random_resize_factor = random.uniform(0.8, 1.2) # Random number between 0.8 and 1.2
+
+        # Calculate new dimensions
+        new_height = int(original_img_height * random_resize_factor)
+        new_width = int(original_img_width * random_resize_factor)
+
+        # Resize the image
+        img = transforms.Resize((new_height, new_width))(img) # Resize the image to the new dimensions
+
+        # Calculate scaling factors for the bounding boxes
+        width_scale = new_width / original_img_width
+        height_scale = new_height / original_img_height
+
+        # Adjust bounding boxes. The bounding boxes are expected in format [x1, y1, x2, y2]
+        adjusted_bounding_boxes = []
+        for bbox in bounding_boxes:
+            adjusted_bbox = [
+                bbox[0] * width_scale, # x1
+                bbox[1] * height_scale, # y1
+                bbox[2] * width_scale, # x2
+                bbox[3] * height_scale, # y2
+            ]
+            adjusted_bounding_boxes.append(adjusted_bbox)
+
+        return img, adjusted_bounding_boxes
+
+
 
 
 
@@ -458,10 +525,6 @@ class DataSetCoco(Dataset):
 
         # Crop the image
         I_cropped, bounding_boxes = self.crop_image(I_cropped, self.coco.loadAnns(self.coco.getAnnIds(imgIds=img["id"])))
-
-        # Apply the transformation
-        if self.transform is not None:
-            I_cropped = self.transform(I_cropped)
 
         # Convert tensor back to PIL Image for visualization
         if isinstance(I_cropped, torch.Tensor):
@@ -506,6 +569,15 @@ class DataSetCoco(Dataset):
         plt.show()
 
 
+
+
+
+
+
+
+
+
+
     
 
 def compute_iou(bbox, cell_bbox):
@@ -541,10 +613,11 @@ def compute_iou(bbox, cell_bbox):
 
 
 
+
 # TO ShOW LABELS FORMAT
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-'''coco_data = DataSetCoco(DataSetType.TRAIN, transform=None, save_crop=True)
+'''coco_data = DataSetCoco(DataSetType.TRAIN, save_crop=True)
 
 # Fetch a sample by its index
 index_to_test = 0 # You can change this to any valid index
