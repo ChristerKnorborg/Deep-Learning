@@ -28,14 +28,6 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
 
 
 
-
-
-
-
-
-
-
-
 def xywh_to_x1y1x2y2(box):
     """
     Convert from [x_center, y_center, width, height] to [x1, y1, x2, y2].
@@ -74,7 +66,7 @@ def bbox_iou(prediction_box, label_box):
     b2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1)
     union_area = b1_area + b2_area - inter_area
 
-    iou = inter_area / union_area
+    iou = inter_area / union_area + 1e-6 # Add a small epsilon to prevent division by zero
     return iou
 
 
@@ -271,15 +263,23 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
 
 
 
+def main():  # Encapsulating in main function
+    
+    print("DEVICE:", DEVICE)
+
+    model = Yolo_v1()
+    model = model.to(DEVICE)  # Use GPU if available
+
+    criterion = YOLOLoss()  # Loss function
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
+
+    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # Decay LR by a factor of 0.1 every 7 epochs
+
+    # Start training process
+    model = train(model, criterion, optimizer, num_epochs=25)
+
+# The following is the standard boilerplate that calls the main() function.
+if __name__ == '__main__':
+    main()
 
 
-
-
-model = Yolo_v1()
-model = model.to(DEVICE) # Use GPU if available
-
-criterion = YOLOLoss() # Loss function
-optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9) # Observe that all parameters are being optimized
-#exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1) # Decay LR by a factor of 0.1 every 7 epochs
-
-model = train(model, criterion, optimizer, num_epochs=25)

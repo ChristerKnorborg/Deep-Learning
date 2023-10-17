@@ -6,6 +6,7 @@ import torch.nn.init as init
 from torchvision.models.resnet import ResNet50_Weights, ResNet18_Weights
 
 
+
 from model_constants import S, B, C
 class Yolo_v1(nn.Module):
 
@@ -17,6 +18,8 @@ class Yolo_v1(nn.Module):
         #resnet_layers = models.resnet50(weights=ResNet50_Weights.DEFAULT) # Load pretrained resnet50 model
 
         resnet_layers = models.resnet18(weights=ResNet18_Weights.DEFAULT) # Use ResNet-18 as the encoder
+
+        # resnet_layers = models.mobilenet_v2(pretrained = True) # Use MobileNetV2 as the encoder
         self.encoder = torch.nn.Sequential(*(list(resnet_layers.children())[:-1])) # Remove removes fc layer to get encoder only
         
         # Print the encoder architecture

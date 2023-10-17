@@ -49,10 +49,10 @@ def process_data():
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
         TRAIN: DataSetCoco(DataSetType.TRAIN, subset_size=10000),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION, subset_size=500)
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, subset_size=1000)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True, num_workers=4)
                    for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification
