@@ -66,7 +66,7 @@ def bbox_iou(prediction_box, label_box):
     b2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1)
     union_area = b1_area + b2_area - inter_area
 
-    iou = inter_area / union_area + 1e-6 # Add a small epsilon to prevent division by zero
+    iou = inter_area / (union_area + 1e-6) # Add a small epsilon to prevent division by zero
     return iou
 
 
