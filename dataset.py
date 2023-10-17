@@ -40,7 +40,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType, subset_size = None, training = False, save_crop = False):
+    def __init__(self, datatype: DataSetType, subset_size = None, training = False, save_augmentation = False):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -64,8 +64,12 @@ class DataSetCoco(Dataset):
         if subset_size is not None and subset_size < len(self.ids):
             self.ids = random.sample(self.ids, subset_size)
 
-        self.save_crop = save_crop # If True, saves the last crop coordinates to self.last_crop_coordinates
-        self.last_crop_coordinates = [] # Stores the last crop coordinates if save_crop is True
+        self.save_augmentation = save_augmentation # If True, saves the last data augmentation for picture plotting (e.g. crop_image, color_image, etc.)
+        self.augmented_records = {
+            'image': None,  # The transformed image tensor
+            'bboxes': None,  # The transformed bounding boxes
+        } # Used to store the data augmentation for an image if save_augmentation is True
+        
         
 
 
@@ -265,13 +269,15 @@ class DataSetCoco(Dataset):
                 bounding_boxes.append([bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]) # Convert [x, y, width, height] to [x1, y1, x2, y2] format
             
 
-
-        img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly (This need to be done to make dimensions the same (256x256) for all images))
+        ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ### 
+        img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly 
 
         # If training, apply data augmentation
         if self.training:
             img = self.color_image(img) # Apply color augmentation
             img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize the image randomly between 0.8 and 1.2 times its original size
+            #img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
+    
 
 
         img_height, img_width = img.shape[1:3]  # Get the width and height (after transforming the image if training)
@@ -342,6 +348,16 @@ class DataSetCoco(Dataset):
 
                     # Set bounding box attributes
                     label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+
+
+
+
+        # Save the data augmentation if save_augmentation is True
+        if self.save_augmentation:
+            self.augmented_records = {
+                'image': img,  # The transformed image tensor
+                'bboxes': bounding_boxes,  # The transformed bounding boxes
+            }
                 
 
         return img, label_tensor
@@ -360,7 +376,7 @@ class DataSetCoco(Dataset):
 
         original_height, original_width = img.shape[1:3]
         chosen_dim = random.choice([original_height, original_width])  # Chose to use original width or original height randomly for new size
-        scale_factor = random.uniform(0.8, 1.2) # Calculate a random scale factor between 0.8 and 1.2
+        scale_factor = random.uniform(0.8, 1.0) # Calculate a random scale factor between 0.8 and 1.2
 
         new_size = (int(chosen_dim * scale_factor), int(chosen_dim * scale_factor)) # Calculate the new size
         # Determine crop dimensions
@@ -385,12 +401,6 @@ class DataSetCoco(Dataset):
         y1 = random.randint(0, max_y)
         x2 = x1 + new_width
         y2 = y1 + new_height
-
-        # Save crop coordinates if save_crop flag is set and they are not already saved.
-        if self.save_crop and not self.last_crop_coordinates:
-            self.last_crop_coordinates = (x1, y1, x2, y2)
-        elif self.save_crop:
-            x1, y1, x2, y2 = self.last_crop_coordinates
 
         # Crop the image
         new_img = img[:, y1:y2, x1:x2]
@@ -428,6 +438,7 @@ class DataSetCoco(Dataset):
                     bounding_boxes.append(new_bbox)
 
             processed_annotations.append(new_ann)
+            
 
         # Continue with your process, using new_img and processed_annotations as needed
         return new_img, bounding_boxes
@@ -495,6 +506,63 @@ class DataSetCoco(Dataset):
             adjusted_bounding_boxes.append(adjusted_bbox)
 
         return img, adjusted_bounding_boxes
+    
+
+    def horizontal_flip_image(self, img, bounding_boxes):
+        """
+        Randomly flip the image horizontally with a probability of 0.5 and adjust the bounding boxes accordingly.
+
+        Args:
+        img (Tensor): Image to be potentially flipped.
+        bounding_boxes (list): List of bounding boxes present in the image.
+
+        Returns:
+        Tuple[Tensor, list]: Potentially flipped image and the adjusted list of bounding boxes.
+        """
+        # Check if we should flip the image 
+        #if random.random() > 0.5:  # Using random.random() for a clearer 50% probability
+            # No flip, return the original image and bounding boxes
+        #return img, bounding_boxes
+
+        # Flip the image
+        img_width = img.shape[2]  # We need the width to adjust the bounding box coordinates
+
+        print("img shape: ", img.shape)
+        flipped_img = transforms.RandomHorizontalFlip(p=1)(img) # Flip the image horizontally with a probability of 1
+        print("flipped img shape: ", flipped_img.shape)
+
+        # Adjust bounding boxes. The bounding boxes are expected in format [x1, y1, x2, y2]
+        adjusted_bounding_boxes = []
+        for bbox in bounding_boxes:
+            # Old x1 and x2
+            old_x1 = bbox[0]
+            old_x2 = bbox[2]
+
+            # Width of the bounding box
+            bbox_width = old_x2 - old_x1
+
+            # When the image is flipped, old_x2 becomes the new x1. 
+            # The distance of old_x2 from the right edge of the image is the same as the distance of new_x1 from the left edge.
+            new_x1 = img_width - old_x2
+
+            # Since the width of the bounding box doesn't change, new_x2 is simply new_x1 + bbox_width
+            new_x2 = new_x1 + bbox_width
+
+            # However, as you indicated, the values are supposed to be switched, so you actually need to recalculate using the image width.
+            # This can be done by subtracting the old x1 (which is now the "right" side of the box) from the image width to get the new "left" side.
+            new_x1_corrected = img_width - old_x1
+            new_x2_corrected = img_width - old_x2
+
+            # Now, you can create the adjusted bounding box with the corrected coordinates.
+            adjusted_bbox = [
+                new_x2_corrected, # previously old_x1, now the right side after flipping
+                bbox[1],          # y1 remains the same
+                new_x1_corrected, # previously old_x2, now the left side after flipping
+                bbox[3]           # y2 remains the same
+            ]
+
+            adjusted_bounding_boxes.append(adjusted_bbox)
+        return flipped_img, adjusted_bounding_boxes
 
 
 
@@ -502,7 +570,6 @@ class DataSetCoco(Dataset):
 
     def show_image_with_bboxes(self, index):
         """Displays both the original and cropped image with their bounding boxes side by side."""
-
 
         # Choose an image and get its ID and filename
         img_id = self.ids[index]
@@ -517,18 +584,27 @@ class DataSetCoco(Dataset):
             image_path = os.path.join(self.img_dir, 'person', img["file_name"])
 
         # Open the image using PIL
-        I_original = Image.open(image_path).convert('RGB')
+        original_image = Image.open(image_path).convert('RGB')
 
-        # Convert the PIL Image to a tensor
-        to_tensor = transforms.ToTensor()
-        I_cropped = to_tensor(I_original)
+        if not self.save_augmentation:
+            print("You need to set save_augmentation to True to be able to visualize the data augmentation.")
+            return
 
-        # Crop the image
-        I_cropped, bounding_boxes = self.crop_image(I_cropped, self.coco.loadAnns(self.coco.getAnnIds(imgIds=img["id"])))
+        # Ensure that there's an augmented image to display
+        if self.augmented_records['image'] is None or self.augmented_records['bboxes'] is None:
+            print("No augmented image to display. Please make sure the augmentation was applied.")
+            return
+
+        # Retrieve the augmented image and bounding boxes
+        augmented_image = self.augmented_records['image']
+        bounding_boxes = self.augmented_records['bboxes']
 
         # Convert tensor back to PIL Image for visualization
-        if isinstance(I_cropped, torch.Tensor):
-            I_cropped = transforms.ToPILImage()(I_cropped)
+        if isinstance(augmented_image, torch.Tensor):
+            augmented_image = transforms.ToPILImage()(augmented_image)
+
+        # Retrieve dimensions for the augmented image
+        augmented_width, augmented_height = augmented_image.size
 
         # Create subplots to display both images side by side
         fig, axarr = plt.subplots(1, 2, figsize=(12, 6))
@@ -540,9 +616,9 @@ class DataSetCoco(Dataset):
                 ax.axhline(y=i * height / S, color='blue', linewidth=0.2)
 
         # Display the original image with original bounding boxes
-        axarr[0].imshow(I_original)
-        draw_grid(axarr[0], I_original.width, I_original.height)
-        
+        axarr[0].imshow(original_image)
+        draw_grid(axarr[0], *original_image.size)  # unpacking the size tuple directly
+
         annIds_original = self.coco.getAnnIds(imgIds=img["id"])
         anns_original = self.coco.loadAnns(annIds_original)
         person_cat_id = self.coco.getCatIds(catNms=["person"])[0]
@@ -552,16 +628,18 @@ class DataSetCoco(Dataset):
                 bbox = ann['bbox']
                 rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
                 axarr[0].add_patch(rect)
+
         axarr[0].set_title('Original Image')
         axarr[0].axis('off')
 
         # Display the cropped image with adjusted bounding boxes
-        axarr[1].imshow(I_cropped)
-        draw_grid(axarr[1], I_cropped.width, I_cropped.height)
+        axarr[1].imshow(augmented_image)
+        draw_grid(axarr[1], augmented_width, augmented_height)
 
         for bbox in bounding_boxes:
             rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
             axarr[1].add_patch(rect)
+
         axarr[1].set_title('Cropped Image')
         axarr[1].axis('off')
 
@@ -617,7 +695,7 @@ def compute_iou(bbox, cell_bbox):
 # TO ShOW LABELS FORMAT
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-'''coco_data = DataSetCoco(DataSetType.TRAIN, save_crop=True)
+coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
 index_to_test = 0 # You can change this to any valid index
@@ -627,7 +705,7 @@ img, yolo_targets = coco_data.__getitem__(index_to_test)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)'''
+coco_data.show_image_with_bboxes(index_to_test)
 
 
 
