@@ -15,44 +15,22 @@ import copy
 from pathlib import Path
 import json
 
+
 from dataset import TRAIN, VALIDATION
 
 
 def process_data():
 
-    data_transforms = {
-        TRAIN: transforms.Compose([
-            # First arguments for inital trainings
-            transforms.Resize(256),
-            #transforms.RandomCrop(256),
-            
-            #transforms.RandomResizedCrop(256),
-            # Horizontally flip the image with probability 0.5
-            #transforms.RandomHorizontalFlip(0.5),
-            # Randomly change the brightness of the image by 10%
-            #transforms.ColorJitter(brightness=0.1),
-            # Randomly rotate images in the range (degrees, 0 to 180)
-            #transforms.RandomRotation(degrees=10),
-            #transforms.ToTensor(),
-            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-        VALIDATION: transforms.Compose([
-            transforms.RandomCrop(256),
-            transforms.Resize(256),
-            # transforms.ToTensor()
-            # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-    }
-
    # Use our custom DataSetCoco class
     image_datasets = {
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        TRAIN: DataSetCoco(DataSetType.TRAIN, subset_size=10000),
+        TRAIN: DataSetCoco(DataSetType.TRAIN, subset_size=10000, training=True),
         VALIDATION: DataSetCoco(DataSetType.VALIDATION, subset_size=1000)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True, num_workers=4)
+
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     # Printing the classes for verification
