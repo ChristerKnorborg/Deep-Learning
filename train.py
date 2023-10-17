@@ -84,11 +84,12 @@ def compute_accuracy(preds, labels):
         for i in range(S):
             for j in range(S):
                 # Extract bounding box and class prediction
-                pred_bbox1 = preds[b, i, j, 1:5].tolist()
-                pred_bbox2 = preds[b, i, j, 6:10].tolist()
+                pred_bbox1 = preds[b, i, j, 2:6].tolist() # (x1, y1, w1, h1)
+                pred_bbox2 = preds[b, i, j, 7:11].tolist() # (x2, y2, w2, h2)
                 pred_class_prob = preds[b, i, j, 0].item()
 
-                label_bbox = labels[b, i, j, 2:6].tolist()
+
+                label_bbox = labels[b, i, j, 2:6].tolist() # (x, y, w, h)
                 label_class_prob = labels[b, i, j, 0].item()
 
                 # Find the predicted bbox with the highest IoU
@@ -97,6 +98,8 @@ def compute_accuracy(preds, labels):
                 iou = max(iou1, iou2)
                 
                 # Check the conditions for scoring
+                
+
                 if pred_class_prob > 0.5 and iou > 0.5:
                     correct += 1
                 elif pred_class_prob > 0.5 and 0.1 < iou < 0.5:
