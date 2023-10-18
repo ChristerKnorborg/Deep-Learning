@@ -78,6 +78,7 @@ def compute_accuracy(preds, labels):
     similar = 0  # This variable is not used in your original function; consider its purpose.
     other = 0
     background = 0
+    total_bounding_boxes = 0
     
     batch_size = preds.shape[0] # Predictions are of shape (batch_size, S, S, B*5 + C)
     
@@ -109,7 +110,9 @@ def compute_accuracy(preds, labels):
                     elif iou > 0.1:
                         other += 1  # All other cases as "other"
 
-    return correct, localization, similar, other, background
+                    total_bounding_boxes +=1  # You can assume that there are always two bounding boxes per cell.
+
+    return correct, localization, similar, other, background, total_bounding_boxes
 
 
 
@@ -199,6 +202,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             all_similar = 0
             all_other = 0
             all_background = 0
+            all_bounding_boxes = 0
 
             # Print progress within an epoch
             total_batches = len(dataloaders[phase]) 
@@ -216,12 +220,13 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                     loss = criterion(outputs, labels)
                    
                     # Compute accuracy metrics
-                    correct, localization, similar, other, background = compute_accuracy(outputs, labels)
+                    correct, localization, similar, other, background, bounding_boxes = compute_accuracy(outputs, labels)
                     all_correct += correct
                     all_localization += localization
                     all_similar += similar
                     all_other += other
                     all_background += background
+                    all_bounding_boxes += bounding_boxes
 
                     if phase == TRAIN:
                         loss.backward()
@@ -239,6 +244,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             print(f"{phase} Similar Object Errors: {all_similar}")
             print(f"{phase} Other Errors: {all_other}")
             print(f"{phase} Background Predictions: {all_background}")
+            print(f"{phase} Total Bounding Boxes: {all_bounding_boxes}")
 
             # Save the metrics for this epoch
             losses[phase].append(epoch_loss)
