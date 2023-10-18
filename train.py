@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-from data_preprocess import process_data
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -17,6 +16,8 @@ from model_constants import S, B, C
 import copy
 import pickle
 import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from dataset import DataSetCoco, DataSetType
 
 
 
@@ -156,7 +157,16 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
-    dataloaders, image_datasets = process_data()
+    image_datasets = {
+        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
+        TRAIN: DataSetCoco(DataSetType.TRAIN, training=True),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION)
+    }
+
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
+                   for x in [TRAIN, VALIDATION]}
+
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
     # Dictionaries to store metrics for each epoch

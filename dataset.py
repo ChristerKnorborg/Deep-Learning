@@ -655,7 +655,7 @@ def compute_iou(bbox, cell_bbox):
 # TO ShOW LABELS FORMAT
 
 # Create an instance of the DataSetCoco class for the TRAIN dataset
-coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
+'''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
 index_to_test = 1 # You can change this to any valid index
@@ -666,7 +666,7 @@ print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['f
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
 coco_data.show_image_with_bboxes(index_to_test)
-
+'''
 
 
 
