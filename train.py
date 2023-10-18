@@ -75,11 +75,11 @@ def bbox_iou(prediction_box, label_box):
 def compute_accuracy(preds, labels):
     correct = 0
     localization = 0
-    similar = 0
+    similar = 0  # This variable is not used in your original function; consider its purpose.
     other = 0
     background = 0
     
-    batch_size = preds.shape[0]
+    batch_size = preds.shape[0] # Predictions are of shape (batch_size, S, S, B*5 + C)
     
     for b in range(batch_size):
         for i in range(S):
@@ -89,27 +89,26 @@ def compute_accuracy(preds, labels):
                 pred_bbox2 = preds[b, i, j, 7:11].tolist() # (x2, y2, w2, h2)
                 pred_class_prob = preds[b, i, j, 0].item()
 
-
                 label_bbox = labels[b, i, j, 2:6].tolist() # (x, y, w, h)
-                label_class_prob = labels[b, i, j, 0].item()
+                label_class_prob = labels[b, i, j, 0].item() # Object presence probability
 
-                # Find the predicted bbox with the highest IoU
-                iou1 = bbox_iou(pred_bbox1, label_bbox)
-                iou2 = bbox_iou(pred_bbox2, label_bbox)
-                iou = max(iou1, iou2)
-                
-                # Check the conditions for scoring
-                
-
-                if pred_class_prob > 0.5 and iou > 0.5:
-                    correct += 1
-                elif pred_class_prob > 0.5 and 0.1 < iou < 0.5:
-                    localization += 1
-                elif pred_class_prob > 0.5 and iou < 0.1:
-                    background += 1
-                elif 0.1 < iou:
-                    other += 1  # As we treat all other cases as "other"
+                # Only consider cells where the label indicates there is an object
+                if label_class_prob == 1:
+                    # Find the predicted bbox with the highest IoU
+                    iou1 = bbox_iou(pred_bbox1, label_bbox)
+                    iou2 = bbox_iou(pred_bbox2, label_bbox)
+                    iou = max(iou1, iou2)
                     
+                    # Check the conditions for scoring
+                    if pred_class_prob > 0.5 and iou > 0.5:
+                        correct += 1
+                    elif pred_class_prob > 0.5 and 0.1 < iou <= 0.5:
+                        localization += 1
+                    elif pred_class_prob > 0.5 and iou <= 0.1:
+                        background += 1
+                    elif iou > 0.1:
+                        other += 1  # All other cases as "other"
+
     return correct, localization, similar, other, background
 
 
@@ -152,7 +151,7 @@ def plot_training_results(losses, metrics, num_epochs):
 
 
 
-def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25):
+def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=4):
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -161,10 +160,10 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION)
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True, num_workers=4)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}

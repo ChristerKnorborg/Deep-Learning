@@ -260,16 +260,20 @@ class DataSetCoco(Dataset):
         img = Image.open(image_path).convert('RGB') # Open the image using PIL
         img = transforms.ToTensor()(img) # Convert the PIL Image to a tensor
 
-
         ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ### 
         img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly 
+        img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
+        bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
+
 
         # If training, apply data augmentation
         if self.training:
             img = self.color_image(img) # Apply color augmentation
-            img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
             img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
     
+
+
+
 
 
         img_height, img_width = img.shape[1:3]  # Get the width and height (after transforming the image if training)
@@ -474,8 +478,8 @@ class DataSetCoco(Dataset):
         # New dimensions
         new_width, new_height = size
 
-        # Resize the image
-        img = transforms.Resize((new_height, new_width))(img) # Resize the image to the new dimensions
+        # Resize the image to the new dimensions
+        img = transforms.Resize((new_height, new_width), antialias=True)(img)
 
         # Calculate scaling factors for the bounding boxes
         width_scale = new_width / original_img_width
@@ -522,6 +526,29 @@ class DataSetCoco(Dataset):
             adjusted_bounding_boxes.append(adjusted_bbox)
 
         return flipped_img, adjusted_bounding_boxes
+    
+
+
+    def remove_small_bounding_boxes(self, bounding_boxes, min_size=20):
+        """
+        Filters out bounding boxes that are below a certain size threshold.
+
+        Args:
+        bounding_boxes (list): List of bounding boxes, each represented as [x1, y1, width, height].
+        min_size (int): The minimum acceptable width and height of a bounding box.
+
+        Returns:
+        list: The filtered list of bounding boxes.
+        """
+        filtered_boxes = []
+        for bbox in bounding_boxes:
+            width, height = bbox[2], bbox[3]  # Extracting width and height from the box representation
+
+            # Boxes must be at least min_size in both width and height
+            if width >= min_size and height >= min_size:
+                filtered_boxes.append(bbox)
+
+        return filtered_boxes
 
 
 
@@ -658,7 +685,7 @@ def compute_iou(bbox, cell_bbox):
 '''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
-index_to_test = 1 # You can change this to any valid index
+index_to_test = 0 # You can change this to any valid index
 img, yolo_targets = coco_data.__getitem__(index_to_test)
 
 # print image name:
