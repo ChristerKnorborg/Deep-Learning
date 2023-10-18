@@ -288,7 +288,7 @@ def main():  # Encapsulating in main function
     # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, num_epochs=25)
+    model = train(model, criterion, optimizer, num_epochs=20)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':
