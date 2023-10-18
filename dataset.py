@@ -479,7 +479,7 @@ class DataSetCoco(Dataset):
         new_width, new_height = size
 
         # Resize the image to the new dimensions
-        img = transforms.Resize((new_height, new_width), antialias=True)(img)
+        img = transforms.Resize((new_height, new_width), antialias=True)(img) # type: ignore
 
         # Calculate scaling factors for the bounding boxes
         width_scale = new_width / original_img_width
