@@ -151,7 +151,7 @@ def plot_training_results(losses, metrics, num_epochs):
 
 
 
-def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=4):
+def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25):
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
