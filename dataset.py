@@ -261,14 +261,6 @@ class DataSetCoco(Dataset):
         img = transforms.ToTensor()(img) # Convert the PIL Image to a tensor
 
 
-        # Extract bounding boxes from the annotations. We only use bounding boxes for the "person" class
-        bounding_boxes = []
-        for ann in annotations:
-            if 'bbox' in ann and ann['category_id'] == self.coco.getCatIds(catNms=["person"])[0]: # Check if it's a "person"
-                bbox = ann['bbox']
-                bounding_boxes.append([bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]) # Convert [x, y, width, height] to [x1, y1, x2, y2] format
-            
-
         ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ### 
         img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly 
 
@@ -276,7 +268,7 @@ class DataSetCoco(Dataset):
         if self.training:
             img = self.color_image(img) # Apply color augmentation
             img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
-            #img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
+            img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
     
 
 
@@ -290,24 +282,23 @@ class DataSetCoco(Dataset):
         # Convert COCO bounding boxes to YOLO format
         for bbox in bounding_boxes:
 
-            # Find midpoint coordinate (x, y) of bounding box
-            x_center = bbox[0] + bbox[2] / 2
-            y_center  = bbox[1] + bbox[3] / 2
+            # Find midpoint coordinate (x, y) of bounding box. Notice bbox is in format [x1, y1, width, height]
+            x_center = bbox[0] + (bbox[2] / 2) # Center is x1 + half of width
+            y_center = bbox[1] + (bbox[3] / 2) # Center is y1 + half of height
 
             # Normalize the coordinates
             x = x_center / img_width
             y = y_center / img_height
 
-            # Convert absolute width and height to be relative to the total image dimensions
-            w = bbox[2] / img_width
-            h = bbox[3] / img_height
+            # Normalize the width and height of the bounding box (relative to the image size)
+            w = bbox[2] / img_width  # bbox[2] is the width of the bounding box
+            h = bbox[3] / img_height # bbox[3] is the height of the bounding box
 
 
             # Determine grid cell
             i, j = int(y * S), int(x * S)
             x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
             y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
-
 
 
             # Update cell values with the formula (C_1, C_2, ... , C_n, P_c, x, y, w, h), where C_i is the probability of the object being class i (Class score),
@@ -515,50 +506,23 @@ class DataSetCoco(Dataset):
         Returns:
         Tuple[Tensor, list]: Potentially flipped image and the adjusted list of bounding boxes.
         """
-        # Check if we should flip the image 
-        #if random.random() > 0.5:  # Using random.random() for a clearer 50% probability
-            # No flip, return the original image and bounding boxes
-        #return img, bounding_boxes
 
-        # Flip the image
         img_width = img.shape[2]  # We need the width to adjust the bounding box coordinates
 
-        print("img shape: ", img.shape)
-        flipped_img = transforms.RandomHorizontalFlip(p=1)(img) # Flip the image horizontally with a probability of 1
-        print("flipped img shape: ", flipped_img.shape)
+        flipped_img = transforms.RandomHorizontalFlip(p=1)(img) # Flip the image horizontally with a probability of 0.5
 
-        # Adjust bounding boxes. The bounding boxes are expected in format [x1, y1, x2, y2]
         adjusted_bounding_boxes = []
         for bbox in bounding_boxes:
-            # Old x1 and x2
-            old_x1 = bbox[0]
-            old_x2 = bbox[2]
+            # Calculate the new x-coordinate for the flipped image
+            new_x1 = img_width - bbox[0] - bbox[2]  # new_x1 is calculated as "width - old_x1 - old_width"
 
-            # Width of the bounding box
-            bbox_width = old_x2 - old_x1
-
-            # When the image is flipped, old_x2 becomes the new x1. 
-            # The distance of old_x2 from the right edge of the image is the same as the distance of new_x1 from the left edge.
-            new_x1 = img_width - old_x2
-
-            # Since the width of the bounding box doesn't change, new_x2 is simply new_x1 + bbox_width
-            new_x2 = new_x1 + bbox_width
-
-            # However, as you indicated, the values are supposed to be switched, so you actually need to recalculate using the image width.
-            # This can be done by subtracting the old x1 (which is now the "right" side of the box) from the image width to get the new "left" side.
-            new_x1_corrected = img_width - old_x1
-            new_x2_corrected = img_width - old_x2
-
-            # Now, you can create the adjusted bounding box with the corrected coordinates.
-            adjusted_bbox = [
-                new_x2_corrected, # previously old_x1, now the right side after flipping
-                bbox[1],          # y1 remains the same
-                new_x1_corrected, # previously old_x2, now the left side after flipping
-                bbox[3]           # y2 remains the same
-            ]
+            # The bounding box dimensions remain the same, only the origin (top-left corner) changes.
+            adjusted_bbox = [new_x1, bbox[1], bbox[2], bbox[3]]  # (x1, y1, width, height) format
 
             adjusted_bounding_boxes.append(adjusted_bbox)
+
         return flipped_img, adjusted_bounding_boxes
+
 
 
 
@@ -636,7 +600,7 @@ class DataSetCoco(Dataset):
             rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
             axarr[1].add_patch(rect)
 
-        axarr[1].set_title('Cropped Image')
+        axarr[1].set_title('Augmented Image')
         axarr[1].axis('off')
 
         plt.tight_layout()
@@ -690,18 +654,18 @@ def compute_iou(bbox, cell_bbox):
 
 # TO ShOW LABELS FORMAT
 
-'''# Create an instance of the DataSetCoco class for the TRAIN dataset
+# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
-index_to_test = 0 # You can change this to any valid index
+index_to_test = 1 # You can change this to any valid index
 img, yolo_targets = coco_data.__getitem__(index_to_test)
 
 # print image name:
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)'''
+coco_data.show_image_with_bboxes(index_to_test)
 
 
 
