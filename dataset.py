@@ -261,15 +261,15 @@ class DataSetCoco(Dataset):
         img = transforms.ToTensor()(img) # Convert the PIL Image to a tensor
 
         ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ### 
-        img, bounding_boxes = self.crop_image(img, annotations) # Crop the image and adjust bounding boxes accordingly 
-        img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
-        bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
+        img, bounding_boxes = self.crop_image(img, annotations, size=(512,512)) # Crop the image and adjust bounding boxes accordingly 
+        # img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
+        # bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
 
 
-        # If training, apply data augmentation
-        if self.training:
-            img = self.color_image(img) # Apply color augmentation
-            img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
+        # # If training, apply data augmentation
+        # if self.training:
+        #     img = self.color_image(img) # Apply color augmentation
+        #     img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
     
 
 
@@ -356,18 +356,18 @@ class DataSetCoco(Dataset):
 
 
 
-    def crop_image(self, img: torch.Tensor, original_annotations, size=(512, 512)):
+    def crop_image(self, img: torch.Tensor, original_annotations, size=None):
 
+        if size is None:
+            original_height, original_width = img.shape[1:3]
+            chosen_dim = random.choice([original_height, original_width])  # Chose to use original width or original height randomly for new size
+            scale_factor = random.uniform(0.8, 1.2) # Calculate a random scale factor between 0.8 and 1.2
 
-        original_height, original_width = img.shape[1:3]
-        chosen_dim = random.choice([original_height, original_width])  # Chose to use original width or original height randomly for new size
-        scale_factor = random.uniform(0.8, 1.2) # Calculate a random scale factor between 0.8 and 1.2
-
-        new_size = (int(chosen_dim * scale_factor), int(chosen_dim * scale_factor)) # Calculate the new size
-        # Determine crop dimensions
-        new_width, new_height = new_size
-
-        # Chosen
+            new_size = (int(chosen_dim * scale_factor), int(chosen_dim * scale_factor)) # Calculate the new size
+            # Determine crop dimensions
+            new_width, new_height = new_size
+        else:
+            new_width, new_height = size
         
         # If the image dimensions are smaller than crop dimensions, pad the image
         padding_top = padding_bottom = padding_left = padding_right = 0
@@ -682,8 +682,8 @@ img, yolo_targets = coco_data.__getitem__(index_to_test)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)'''
+coco_data.show_image_with_bboxes(index_to_test)
 
-
+'''
 
 

@@ -29,15 +29,21 @@ class Yolo_v1(nn.Module):
         # From the paper: S * S * (B * 5), where 5 is the number of parameters in each bounding box (confidence, x, y, w, h)
         prediction_tensor = S**2 * (B*5) # 7*7*(2*5) = 490
 
+        # self.fc = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.BatchNorm1d(512),
+        #     self._make_linear_with_xavier(512, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+        #     #self._make_linear_with_xavier(2048, 512), # 2048 is output by resnet encoder. 512 is number of features we want
+        #     nn.BatchNorm1d(512),
+        #     nn.LeakyReLU(0.1), # 0.1 is used in the paper
+        #     # nn.Dropout(0.5), # Optional: for regularization
+        #     self._make_linear_with_xavier(512, prediction_tensor),
+        #     nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
+        # )
+
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.BatchNorm1d(512),
-            self._make_linear_with_xavier(512, 512), # 2048 is output by resnet encoder. 512 is number of features we want
-            #self._make_linear_with_xavier(2048, 512), # 2048 is output by resnet encoder. 512 is number of features we want
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.1), # 0.1 is used in the paper
-            # nn.Dropout(0.5), # Optional: for regularization
-            self._make_linear_with_xavier(512, prediction_tensor),
+            nn.Linear(512, prediction_tensor),
             nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
 
