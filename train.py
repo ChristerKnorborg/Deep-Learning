@@ -265,34 +265,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
 
 
 
-        # Capture values for both TRAIN and VALIDATION phases
-        train_correct = metrics[TRAIN][epoch]["correct"]
-        val_correct = metrics[VALIDATION][epoch]["correct"]
-
-        train_localization = metrics[TRAIN][epoch]["localization"]
-        val_localization = metrics[VALIDATION][epoch]["localization"]
-
-        train_similar = metrics[TRAIN][epoch]["similar"]
-        val_similar = metrics[VALIDATION][epoch]["similar"]
-
-        train_other = metrics[TRAIN][epoch]["other"]
-        val_other = metrics[VALIDATION][epoch]["other"]
-
-        train_background = metrics[TRAIN][epoch]["background"]
-        val_background = metrics[VALIDATION][epoch]["background"]
-
-        # Now, write these metrics to the CSV file, specifying both TRAIN and VALIDATION stats
-        writer.writerow([
-            epoch, 
-            losses[TRAIN][-1], losses[VALIDATION][-1], 
-            train_correct, val_correct, 
-            train_localization, val_localization, 
-            train_similar, val_similar, 
-            train_other, val_other, 
-            train_background, val_background
-        ])  # write the most recent losses and metrics after each epoch
-
-
+        writer.writerow([epoch, losses[TRAIN][-1], losses[VALIDATION][-1]])  # write the most recent losses after each epoch
 
 
 
