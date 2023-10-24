@@ -148,113 +148,131 @@ def plot_training_results(losses, metrics, num_epochs):
 
 
 
+    
+
+
+
+
 
 def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25):
+    
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
     image_datasets = {
+        #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
+        #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=16),
         VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False, subset_size=16)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=16, shuffle=True) for x in [TRAIN, VALIDATION]}
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=1, shuffle=True)
+                   for x in [TRAIN, VALIDATION]}
+
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
 
     # Dictionaries to store metrics for each epoch
     losses = {TRAIN: [], VALIDATION: []}
     metrics = {TRAIN: {}, VALIDATION: {}}
 
-    # Open the CSV file once before you start the epochs
-    with open("training_metrics.csv", "w", newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        # Write the header row.
-        writer.writerow(["Epoch", "Train_Loss", "Validation_Loss", "Correct", "Localization", "Similar", "Other", "Background", "Total_Bounding_Boxes"])
 
-        for epoch in range(num_epochs):
-            print('Epoch {}/{}'.format(epoch, num_epochs - 1))
-            print('-' * 10)
+    # Open the CSV file once before you start the epochs.
+    csv_file = open("training_metrics.csv", "w", newline='')
+    writer = csv.writer(csv_file)
+    writer.writerow(["Epoch", "Train_Loss", "Validation_Loss", "Correct", "Localization", "Similar", "Other", "Background", "Total_Bounding_Boxes"])
 
-            for phase in [TRAIN, VALIDATION]:
-                if phase == TRAIN:
-                    model.train()  # Set model to training mode
-                else:
-                    model.eval()   # Set model to evaluate mode
 
-                running_loss = 0.0
-                all_correct = 0
-                all_localization = 0
-                all_similar = 0
-                all_other = 0
-                all_background = 0
-                all_bounding_boxes = 0
+    
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('----------')
+        
+        for phase in [TRAIN, VALIDATION]:
+            if phase == TRAIN:
+                print('Training phase:')
+                model.train()
+            else:
+                print('Validation phase:')
+                model.eval()
+            
+            running_loss = 0.0
 
-                # Iterate over data.
-                for inputs, labels in dataloaders[phase]:
-                    inputs = inputs.to(DEVICE)
-                    labels = labels.to(DEVICE)
+            all_correct = 0
+            all_localization = 0
+            all_similar = 0
+            all_other = 0
+            all_background = 0
+            all_bounding_boxes = 0
 
-                    # zero the parameter gradients
-                    optimizer.zero_grad()
+            # Print progress within an epoch
+            total_batches = len(dataloaders[phase]) 
 
-                    # forward
-                    # track history if only in train
-                    with torch.set_grad_enabled(phase == TRAIN):
-                        outputs = model(inputs)
-                        loss = criterion(outputs, labels)
+            for iteration, (inputs, labels) in enumerate(dataloaders[phase], start=1):
+                print(f"\rProcessing batch {iteration}/{total_batches}", end="")
 
-                        # Compute accuracy metrics here
-                        correct, localization, similar, other, background, bounding_boxes = compute_accuracy(outputs, labels)
+                inputs = inputs.to(DEVICE) 
+                labels = labels.to(DEVICE)
 
-                        all_correct += correct
-                        all_localization += localization
-                        all_similar += similar
-                        all_other += other
-                        all_background += background
-                        all_bounding_boxes += bounding_boxes
+                optimizer.zero_grad()
 
-                        # backward + optimize only if in training phase
-                        if phase == TRAIN:
-                            loss.backward()
-                            optimizer.step()
+                with torch.set_grad_enabled(phase == TRAIN):
+                    outputs = model(inputs)
+                    loss = criterion(outputs, labels)
+                   
+                    # Compute accuracy metrics
+                    correct, localization, similar, other, background, bounding_boxes = compute_accuracy(outputs, labels)
+                    all_correct += correct
+                    all_localization += localization
+                    all_similar += similar
+                    all_other += other
+                    all_background += background
+                    all_bounding_boxes += bounding_boxes
 
-                    # statistics
-                    running_loss += loss.item() * inputs.size(0)
+                    if phase == TRAIN:
+                        loss.backward()
+                        optimizer.step()
 
-                epoch_loss = running_loss / dataset_sizes[phase]
-                losses[phase].append(epoch_loss)
 
-                # Saving metrics
-                metrics[phase][epoch] = {
-                    "correct": all_correct,
-                    "localization": all_localization,
-                    "similar": all_similar,
-                    "other": all_other,
-                    "background": all_background,
-                    "total_bounding_boxes": all_bounding_boxes
-                }
+                # statistics
+                running_loss += loss.item() # * inputs.size(0) is removed because YOLOLoss already sums over the batch
 
-                if phase == VALIDATION:
-                    print('Validation Loss: {:.4f}'.format(epoch_loss))
-                    writer.writerow([epoch, losses[TRAIN][-1], losses[VALIDATION][-1], all_correct, all_localization, all_similar, all_other, all_background, all_bounding_boxes])
+            epoch_loss = running_loss / dataset_sizes[phase]
 
-                    epoch_acc = all_correct / float(dataset_sizes[phase])
-                    # deep copy the model
-                    if epoch_acc > best_acc:
-                        best_acc = epoch_acc
-                        best_model_wts = copy.deepcopy(model.state_dict())
+            print('{} Loss: {:.4f}'.format(phase, epoch_loss))
+            print(f"{phase} Correct Predictions: {all_correct}")
+            print(f"{phase} Localization Errors: {all_localization}")
+            print(f"{phase} Similar Object Errors: {all_similar}")
+            print(f"{phase} Other Errors: {all_other}")
+            print(f"{phase} Background Predictions: {all_background}")
+            print(f"{phase} Total Bounding Boxes: {all_bounding_boxes}")
 
-            if scheduler:
-                scheduler.step()
+            # Save the metrics for this epoch
+            losses[phase].append(epoch_loss)
+            metrics[phase][epoch] = {
+                "correct": all_correct,
+                "localization": all_localization,
+                "similar": all_similar,
+                "other": all_other,
+                "background": all_background
+            }
+            
+            epoch_acc = all_correct / dataset_sizes[phase]
 
-        print('Best val Acc: {:4f}'.format(best_acc))
+            # Deep copy the model
+            if phase == VALIDATION and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model_wts = copy.deepcopy(model.state_dict())
 
-    # load best model weights
-    model.load_state_dict(best_model_wts)
-    torch.save(model.state_dict(), 'best_model_yolo_v1.pth')
 
-    # Closing the CSV file
+
+        writer.writerow([epoch, losses[TRAIN][-1], losses[VALIDATION][-1], all_correct, all_localization, all_similar, all_other, all_background, all_bounding_boxes])  # write the most recent losses after each epoch
+
+
+
+
     csv_file.close()
+    torch.save(best_model_wts, "best_model_weights.pth") # Saving the best model
+
 
     # Plotting the training results
     plot_training_results(losses, metrics, num_epochs)
@@ -271,12 +289,12 @@ def main():  # Encapsulating in main function
     model = model.to(DEVICE)  # Use GPU if available
 
     criterion = YOLOLoss()  # Loss function
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)  # Observe that all parameters are being optimized
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
 
     # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, num_epochs=500)
+    model = train(model, criterion, optimizer, num_epochs=50)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':
