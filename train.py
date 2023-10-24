@@ -12,7 +12,7 @@ import os
 import copy
 from dataset import TRAIN, VALIDATION
 from yolo_v1 import Yolo_v1 
-from model_constants import S, B, C
+from model_constants import S, B
 import copy
 import pickle
 import matplotlib.pyplot as plt
@@ -80,37 +80,37 @@ def compute_accuracy(preds, labels):
     background = 0
     total_bounding_boxes = 0
     
-    batch_size = preds.shape[0] # Predictions are of shape (batch_size, S, S, B*5 + C)
+    batch_size = preds.shape[0] # Predictions are of shape (batch_size, S, S, B*5)
     
     for b in range(batch_size):
         for i in range(S):
             for j in range(S):
                 # Extract bounding box and class prediction
-                pred_bbox1 = preds[b, i, j, 2:6].tolist() # (x1, y1, w1, h1)
-                pred_bbox2 = preds[b, i, j, 7:11].tolist() # (x2, y2, w2, h2)
-                pred_class_prob = preds[b, i, j, 0].item()
+                pred_bbox1 = preds[b, i, j, 1:5].tolist() # (x1, y1, w1, h1)
+                pred_bbox2 = preds[b, i, j, 6:10].tolist() # (x2, y2, w2, h2)
+                pred_person_prob = preds[b, i, j, 0].item()
 
-                label_bbox = labels[b, i, j, 2:6].tolist() # (x, y, w, h)
-                label_class_prob = labels[b, i, j, 0].item() # Object presence probability
+                label_bbox = labels[b, i, j, 1:5].tolist() # (x, y, w, h)
+                label_person_prob = labels[b, i, j, 0].item() # Person presence probability
 
                 # Only consider cells where the label indicates there is an object
-                if label_class_prob == 1:
+                if label_person_prob == 1:
                     # Find the predicted bbox with the highest IoU
                     iou1 = bbox_iou(pred_bbox1, label_bbox)
                     iou2 = bbox_iou(pred_bbox2, label_bbox)
                     iou = max(iou1, iou2)
                     
                     # Check the conditions for scoring
-                    if pred_class_prob > 0.5 and iou > 0.5:
+                    if pred_person_prob > 0.5 and iou > 0.5:
                         correct += 1
-                    elif pred_class_prob > 0.5 and 0.1 < iou <= 0.5:
+                    elif pred_person_prob > 0.5 and 0.1 < iou <= 0.5:
                         localization += 1
-                    elif pred_class_prob > 0.5 and iou <= 0.1:
+                    elif pred_person_prob > 0.5 and iou <= 0.1:
                         background += 1
                     elif iou > 0.1:
                         other += 1  # All other cases as "other"
 
-                    total_bounding_boxes +=1  # You can assume that there are always two bounding boxes per cell.
+                    total_bounding_boxes +=1 # Only count the bounding boxes where there is a person
 
     return correct, localization, similar, other, background, total_bounding_boxes
 
@@ -162,11 +162,11 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     image_datasets = {
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        TRAIN: DataSetCoco(DataSetType.TRAIN, training=True),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False)
+        TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=512),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False, subset_size=128)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True, num_workers=4)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}

@@ -24,7 +24,7 @@ TRAIN = "./data/train2017"
 VALIDATION = "./data/val2017"
 
 
-from model_constants import S, B, C # Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
+from model_constants import S, B # Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
 
 
 
@@ -279,8 +279,8 @@ class DataSetCoco(Dataset):
         img_height, img_width = img.shape[1:3]  # Get the width and height (after transforming the image if training)
 
 
-        # The image is divided into a grid of size S x S. with each cell being of size C + 5, where C is the number of classes.
-        label_tensor = torch.zeros((S, S, 5 + C))
+        # The image is divided into a grid of size S x S. with each cell being of size 5 (confidence, x, y, w, h)
+        label_tensor = torch.zeros((S, S, 5))
 
 
         # Convert COCO bounding boxes to YOLO format
@@ -305,27 +305,22 @@ class DataSetCoco(Dataset):
             y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
 
 
-            # Update cell values with the formula (C_1, C_2, ... , C_n, P_c, x, y, w, h), where C_i is the probability of the object being class i (Class score),
-            # P_c is the probability of an object being present in the cell (Objectness score), and (x, y) are the coordinates of the midpoint of the bounding box relative to its grid cell, 
-            # and (w, h) are the width and height of the bounding box relative to the whole image.
+            # Update cell values with the formula (P_c, x, y, w, h), where P_c is the probability of a person object being present in
+            # the cell (Combined Objectness/class score), and (x, y) are the coordinates of the midpoint of the bounding box relative
+            # to its grid cell, and (w, h) are the width and height of the bounding box relative to the whole image.
 
-            if label_tensor[i, j, C] == 0: # If there's no object in the cell yet
-                
-                # Assuming there's only one class ("person") for now. 
-                # We would meed to loop over classes and set them accordingly if there were more.
-                label_tensor[i, j, 0] = 1 # Class score for "person" (probability of the object being a "person")
+            if label_tensor[i, j, 0] == 0: # If there's no object in the cell yet
 
-                # Set objectness score
-                label_tensor[i, j, C] = 1  # Objectness score
+                label_tensor[i, j, 0] = 1 # Class score for "person" (Objectness/class score of the object being a "person" is true)
 
                 # Set bounding box attributes
-                label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+                label_tensor[i, j, 1:5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
             
             else: # Choose the bounding box with the largest area
                 
                 # Get the current bounding box attributes
-                current_w = label_tensor[i, j, C + 3]
-                current_h = label_tensor[i, j, C + 4]
+                current_w = label_tensor[i, j, 3]
+                current_h = label_tensor[i, j, 4]
 
                 # Calculate the area of the current and new bounding box
                 current_area = current_w * current_h
@@ -334,15 +329,10 @@ class DataSetCoco(Dataset):
                 # If the new bounding box has a larger area, replace the old bounding box with the new one
                 if new_area > current_area:
 
-                    # Assuming there's only one class ("person") for now. 
-                    # We would meed to loop over classes and set them accordingly if there were more.
-                    label_tensor[i, j, 0] = 1 # Class score for "person" (probability of the object being a "person")
-
-                    # Set objectness score
-                    label_tensor[i, j, C] = 1  # Objectness score
+                    label_tensor[i, j, 0] = 1 # Class score for "person" (Objectness/class score of the object being a "person" is true)
 
                     # Set bounding box attributes
-                    label_tensor[i, j, C + 1:C + 5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
+                    label_tensor[i, j, 1:5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
 
 
 
@@ -685,15 +675,15 @@ def compute_iou(bbox, cell_bbox):
 '''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
-index_to_test = 0 # You can change this to any valid index
+index_to_test = 1 # You can change this to any valid index
 img, yolo_targets = coco_data.__getitem__(index_to_test)
 
 # print image name:
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)
-'''
+coco_data.show_image_with_bboxes(index_to_test)'''
+
 
 
 

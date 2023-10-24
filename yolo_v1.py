@@ -7,7 +7,7 @@ from torchvision.models.resnet import ResNet50_Weights, ResNet18_Weights
 
 
 
-from model_constants import S, B, C
+from model_constants import S, B
 class Yolo_v1(nn.Module):
 
 
@@ -26,8 +26,8 @@ class Yolo_v1(nn.Module):
         #print("Encoder: \n")
         #print(self.encoder)
 
-        # From the paper: S * S * (B * 5 + C), where 5 is the number of parameters in each bounding box (x, y, w, h, confidence)
-        prediction_tensor = S**2 * (B*5 + C) # 7*7*(2*5+1) = 539
+        # From the paper: S * S * (B * 5), where 5 is the number of parameters in each bounding box (confidence, x, y, w, h)
+        prediction_tensor = S**2 * (B*5) # 7*7*(2*5) = 490
 
         self.fc = nn.Sequential(
             nn.Flatten(),
@@ -60,8 +60,8 @@ class Yolo_v1(nn.Module):
         # Run data through decoder
         output = self.fc(x)
 
-        # Reshape the output to [batch_size, S, S, B*5 + C]
-        output = output.view(-1, S, S, B*5 + C) # -1 means the dimension is based number of elements in the tensorand  other given dimension 
+        # Reshape the output to [batch_size, S, S, B*5]
+        output = output.view(-1, S, S, B*5) # -1 means the dimension is based number of elements in the tensor and other given dimension 
    
         return output
 
