@@ -1,4 +1,5 @@
 import csv
+import datetime
 from yolo_v1 import Yolo_v1
 from loss import YOLOLoss
 import torch
@@ -12,7 +13,7 @@ import os
 import copy
 from dataset import TRAIN, VALIDATION
 from yolo_v1 import Yolo_v1 
-from model_constants import S, B
+from model_constants import S, B, DEVICE
 import copy
 import pickle
 import matplotlib.pyplot as plt
@@ -22,8 +23,8 @@ from dataset import DataSetCoco, DataSetType
 
 
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available()
-                      else "cpu")  # Use GPU if available
+
+
 
 
 
@@ -148,6 +149,44 @@ def plot_training_results(losses, metrics, num_epochs):
 
 
 
+def save_model(model_weights, num_epochs, optimizer, scheduler=None, subset_size=None, batch_size=None, save_dir='models'):
+    """
+    Save the model with a filename that encapsulates various training parameters.
+    
+    :param model_weights: State dictionary of the model.
+    :param num_epochs: Total number of epochs in training.
+    :param optimizer: Optimizer used in training.
+    :param scheduler: Learning rate scheduler used in training. Can be None.
+    :param subset_size: The size of the dataset subset used in training. Can be None.
+    :param batch_size: The size of the batches used in training. Can be None.
+    :param save_dir: Directory to save the model.
+    """
+    # Ensure the save directory exists.
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # Extract training parameters from the optimizer.
+    learning_rate = optimizer.param_groups[0]['lr']  # Assuming there is one learning rate for all parameter groups.
+    
+    # Extract scheduler parameters if a scheduler is provided.
+    if scheduler:
+        step_size = scheduler.step_size if hasattr(scheduler, 'step_size') else "unknown"
+        gamma = scheduler.gamma if hasattr(scheduler, 'gamma') else "unknown"
+    else:
+        step_size = "none"
+        gamma = "none"
+
+    # Current date and time for filename.
+    date_now = datetime.datetime.now().strftime('%m-%d_%H')
+
+    # Construct the unique filename. Including subset_size and batch_size in the file name.
+    model_filename = f"model_{date_now}_epoch-{num_epochs}_LR-{learning_rate}_step-{step_size}_gamma-{gamma}_subset-{subset_size}_batch-{batch_size}.pth"
+    model_path = os.path.join(save_dir, model_filename)
+
+    # Save the model weights.
+    torch.save(model_weights, model_path)
+
+
     
 
 
@@ -159,14 +198,17 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
+    SUBSET_SIZE = 16
+    BATCH_SIZE = 1
+
     image_datasets = {
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
         #VALIDATION: DataSetCoco(DataSetType.VALIDATION, transform=data_transforms[VALIDATION])
-        TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=16),
-        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False, subset_size=16)
+        TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE),
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False, subset_size=SUBSET_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=1, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -271,7 +313,12 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
 
 
     csv_file.close()
-    torch.save(best_model_wts, "best_model_weights.pth") # Saving the best model
+
+
+
+
+    # Saving the best model
+    save_model(best_model_wts, num_epochs=num_epochs, optimizer=optimizer, scheduler=scheduler, subset_size=SUBSET_SIZE, batch_size=BATCH_SIZE)
 
 
     # Plotting the training results
@@ -294,7 +341,7 @@ def main():  # Encapsulating in main function
     # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, num_epochs=50)
+    model = train(model, criterion, optimizer, num_epochs=2)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':

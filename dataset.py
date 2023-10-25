@@ -682,8 +682,7 @@ img, yolo_targets = coco_data.__getitem__(index_to_test)
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)
+coco_data.show_image_with_bboxes(index_to_test)'''
 
-'''
 
 
