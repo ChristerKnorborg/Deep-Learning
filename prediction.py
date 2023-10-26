@@ -96,13 +96,12 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
 
 
 
-'''test_image = "data/train2017/person/000000262146.jpg" # Snowboarder image
+test_image = "data/train2017/person/000000262146.jpg" # Snowboarder image
 original_image = Image.open(test_image)
-model_path = "best_model_weights.pth"
+model_path = "models/model_10-26_10_epoch-100_LR-0.01_step-50_gamma-0.5_subset-16_batch-2.pth"
 
 
 display_predictions(model_path, original_image, confidence_threshold=0.5)
 
-'''
 
 

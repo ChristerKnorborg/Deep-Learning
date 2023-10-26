@@ -43,9 +43,13 @@ class Yolo_v1(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Flatten(),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.1), # 0.1 is used in the paper
+            nn.BatchNorm1d(512),
             nn.Linear(512, prediction_tensor),
             nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
+
 
 
 

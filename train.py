@@ -199,7 +199,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_acc = 0.0
 
     SUBSET_SIZE = 16
-    BATCH_SIZE = 1
+    BATCH_SIZE = 2
 
     image_datasets = {
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
@@ -338,10 +338,10 @@ def main():  # Encapsulating in main function
     criterion = YOLOLoss()  # Loss function
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
 
-    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)  # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.5)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, num_epochs=2)
+    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler, num_epochs=1000)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':
