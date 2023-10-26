@@ -199,7 +199,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_acc = 0.0
 
     SUBSET_SIZE = 16
-    BATCH_SIZE = 2
+    BATCH_SIZE = 8
 
     image_datasets = {
         #TRAIN: DataSetCoco(DataSetType.TRAIN, transform=data_transforms[TRAIN]),
@@ -208,7 +208,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
         VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False, subset_size=SUBSET_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=False)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -327,7 +327,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             epoch_acc = all_correct / dataset_sizes[phase]
 
             # Deep copy the model
-            if phase == VALIDATION and epoch_acc > best_acc:
+            if phase == TRAIN and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
@@ -362,12 +362,12 @@ def main():  # Encapsulating in main function
     model = model.to(DEVICE)  # Use GPU if available
 
     criterion = YOLOLoss()  # Loss function
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
-
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.25)  # Decay LR by a factor of 0.1 every 7 epochs
+    #optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
+    optimizer = optim.Adam(model.parameters())
+    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.25)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler, num_epochs=1500, fine_tuning_epochs=200)
+    model = train(model, criterion, optimizer, num_epochs=1500, fine_tuning_epochs=200)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':
