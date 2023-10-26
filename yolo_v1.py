@@ -50,7 +50,6 @@ class Yolo_v1(nn.Module):
             nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
 
-        # self.apply(self._xavier_init) # Initialize the weights of the fully connected layer with Xavier initialization
 
 
 
