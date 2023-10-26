@@ -193,7 +193,7 @@ def save_model(model_weights, num_epochs, optimizer, scheduler=None, subset_size
 
 
 
-def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25):
+def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25, fine_tuning_epochs=0):
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -238,10 +238,22 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     writer.writerow(["Epoch", "Train_Loss", "Validation_Loss", "Correct", "Localization", "Similar", "Other", "Background", "Total_Bounding_Boxes"])
 
 
+    # Define the fine-tuning phase start
+    start_fine_tuning_epoch = num_epochs - fine_tuning_epochs
     
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
+
+        # Check if it's time to start fine-tuning
+        if epoch == start_fine_tuning_epoch:
+            print("Starting fine-tuning phase.")
+            # Unfreeze all the layers for fine-tuning, you can also selectively unfreeze layers
+            for param in model.parameters():
+                param.requires_grad = True
+            
+            # Here, you adjust the learning rate for fine-tuning. It's usually much lower than initial training.
+            optimizer.param_groups[0]['lr'] = 0.0001  # this value should be adjusted based on your observations during training
         
         for phase in [TRAIN, VALIDATION]:
             if phase == TRAIN:
@@ -352,10 +364,10 @@ def main():  # Encapsulating in main function
     criterion = YOLOLoss()  # Loss function
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
 
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.5)  # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.25)  # Decay LR by a factor of 0.1 every 7 epochs
 
     # Start training process
-    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler, num_epochs=1000)
+    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler, num_epochs=1500)
 
 # The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':

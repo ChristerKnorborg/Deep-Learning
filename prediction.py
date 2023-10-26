@@ -101,7 +101,7 @@ original_image = Image.open(test_image)
 model_path = "models/model_10-26_10_epoch-100_LR-0.01_step-50_gamma-0.5_subset-16_batch-2.pth"
 
 
-display_predictions(model_path, original_image, confidence_threshold=0.5)
+display_predictions(model_path, original_image, confidence_threshold=0.7)
 
 
 

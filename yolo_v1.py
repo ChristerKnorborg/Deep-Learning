@@ -78,14 +78,6 @@ class Yolo_v1(nn.Module):
         return output
 
 
-
-    def _xavier_init(self, m):
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)  # Initialize biases to 0'
-            
-
     def xavier_linear(self, in_dim, out_dim):
         linear = nn.Linear(in_dim, out_dim)
         init.xavier_uniform_(linear.weight)
