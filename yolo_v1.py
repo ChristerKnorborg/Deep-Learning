@@ -46,11 +46,11 @@ class Yolo_v1(nn.Module):
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.1), # 0.1 is used in the paper
             nn.BatchNorm1d(512),
-            nn.Linear(512, prediction_tensor),
+            self.xavier_linear(512, prediction_tensor),
             nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
 
-        self.apply(self._xavier_init) # Initialize the weights of the fully connected layer with Xavier initialization
+        # self.apply(self._xavier_init) # Initialize the weights of the fully connected layer with Xavier initialization
 
 
 
@@ -83,5 +83,13 @@ class Yolo_v1(nn.Module):
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)  # Initialize biases to 0
+                    nn.init.constant_(m.bias, 0)  # Initialize biases to 0'
+            
+
+    def xavier_linear(self, in_dim, out_dim):
+        linear = nn.Linear(in_dim, out_dim)
+        init.xavier_uniform_(linear.weight)
+        if linear.bias is not None:
+            init.constant_(linear.bias, 0)
+        return linear
 
