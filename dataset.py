@@ -181,6 +181,17 @@ class DataSetCoco(Dataset):
                                 ### PRODUCTION CODE STARTS HERE ###
 ##############################################################################################################
 
+    def get_all_image_file_names(self):
+        """
+        Retrieve the file names of all images in the dataset.
+
+        Returns:
+        - List[str]: The file names of all images.
+        """
+        all_image_ids = self.ids  # IDs of all images
+        all_image_infos = self.coco.loadImgs(all_image_ids)  # Load all image info from COCO
+        all_file_names = [img_info['file_name'] for img_info in all_image_infos]  # Extract file names
+        return all_file_names
     
 
 

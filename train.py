@@ -218,6 +218,20 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     metrics = {TRAIN: {}, VALIDATION: {}}
 
 
+    # Retrieve and print all image file names at the beginning of training
+    print("Retrieving all image file names...")
+    train_image_file_names = image_datasets[TRAIN].get_all_image_file_names()
+    val_image_file_names = image_datasets[VALIDATION].get_all_image_file_names()
+
+    print("\nTraining Images:")
+    for file_name in train_image_file_names:
+        print(file_name)
+
+    print("\nValidation Images:")
+    for file_name in val_image_file_names:
+        print(file_name)
+
+
     # Open the CSV file once before you start the epochs.
     csv_file = open("training_metrics.csv", "w", newline='')
     writer = csv.writer(csv_file)

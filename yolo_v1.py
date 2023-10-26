@@ -50,6 +50,8 @@ class Yolo_v1(nn.Module):
             nn.Sigmoid() # Sigmoid to constrain the output between 0 and 1
         )
 
+        self.apply(self._xavier_init) # Initialize the weights of the fully connected layer with Xavier initialization
+
 
 
 
@@ -77,10 +79,9 @@ class Yolo_v1(nn.Module):
 
 
 
-    def _make_linear_with_xavier(self, in_features, out_features):
-        layer = nn.Linear(in_features, out_features)
-        init.xavier_uniform_(layer.weight)
-        init.constant_(layer.bias, 0)
-        return layer
-
+    def _xavier_init(self, m):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)  # Initialize biases to 0
 
