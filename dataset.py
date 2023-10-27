@@ -87,6 +87,7 @@ class DataSetCoco(Dataset):
         ### FILE DOWNLOADING AND ORGANIZATION CODE STARTS HERE ###
 ##############################################################################################################
 
+
     def _ensure_data_exists_or_download(self):
         """Downloads and extracts the COCO dataset into the data directory if it doesn't already exist."""
 
@@ -177,6 +178,7 @@ class DataSetCoco(Dataset):
 ##############################################################################################################
         ### PRODUCTION CODE STARTS HERE ###
 ##############################################################################################################
+
 
     def get_all_image_file_names(self):
         """
@@ -610,6 +612,14 @@ class DataSetCoco(Dataset):
 
         plt.tight_layout()
         plt.show()
+
+    def get_image_id_from_filename(self, filename):
+        img_ids = self.coco.getImgIds()
+        for img_id in img_ids:
+            img_info = self.coco.loadImgs([img_id])[0]
+            if img_info["file_name"] == filename:
+                return img_info["id"]
+        return 0
 
 
 def compute_iou(bbox, cell_bbox):
