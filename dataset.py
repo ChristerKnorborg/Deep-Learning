@@ -1,3 +1,5 @@
+# Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
+from model_constants import S, B
 import copy
 import json
 import os
@@ -24,13 +26,6 @@ TRAIN = "./data/train2017"
 VALIDATION = "./data/val2017"
 
 
-from model_constants import S, B # Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
-
-
-
-
-
-
 # Define the DataSetType enum
 class DataSetType(Enum):
     TRAIN = "./data/train2017", "./data/labels/annotations/instances_train2017.json"
@@ -40,7 +35,7 @@ class DataSetType(Enum):
 
 class DataSetCoco(Dataset):
 
-    def __init__(self, datatype: DataSetType, subset_size = None, training = False, save_augmentation = False):
+    def __init__(self, datatype: DataSetType, subset_size=None, training=False, save_augmentation=False, chosen_images=None):
         """Initializes the dataset. Downloads and extracts data if needed.
 
         Args:
@@ -49,43 +44,48 @@ class DataSetCoco(Dataset):
             - ann_file (str): Path to the annotation file.
         - transform (callable, optional): Optional transform to be applied 
         """
+
+        # ... your initialization code ...
+
         self.img_dir, self.ann_file = datatype.value
-        self._ensure_data_exists_or_download() # Ensure data exists or download it
-        self.coco = COCO(self.ann_file) 
-        self.move_images_with_persons_to_person_dir # Move images with persons to the 'person' directory (if not already done)
+        self._ensure_data_exists_or_download()  # Ensure data exists or download it
+        self.coco = COCO(self.ann_file)
+        # Move images with persons to the 'person' directory (if not already done)
+        self.move_images_with_persons_to_person_dir
 
         self.training = training
 
         person_category_ids = self.coco.getCatIds(catNms=['person'])
         self.ids = self.coco.getImgIds(catIds=person_category_ids)
-        #self.ids = list(self.coco.imgs.keys())
+
+        # self.ids = list(self.coco.imgs.keys())
+
+        self.chosen_images = chosen_images
+        if self.chosen_images != None:
+            # Fetch all images details from the COCO dataset
+            all_images = self.coco.loadImgs(ids=self.coco.getImgIds())
+
+    # Extract the image IDs that match the filenames
+            image_ids = [img['id']
+                         for img in all_images if img['file_name'] in self.chosen_images]
+            chosen_ids = image_ids
+            self.ids = [img_id for img_id in self.ids if img_id in chosen_ids]
 
         # Reduce the dataset size if subset_size is set
         if subset_size is not None and subset_size < len(self.ids):
             self.ids = random.sample(self.ids, subset_size)
 
-        self.save_augmentation = save_augmentation # If True, saves the last data augmentation for picture plotting (e.g. crop_image, color_image, etc.)
+        # If True, saves the last data augmentation for picture plotting (e.g. crop_image, color_image, etc.)
+        self.save_augmentation = save_augmentation
         self.augmented_records = {
             'image': None,  # The transformed image tensor
             'bboxes': None,  # The transformed bounding boxes
-        } # Used to store the data augmentation for an image if save_augmentation is True
-        
-        
-
-
-
-
-
-
+        }  # Used to store the data augmentation for an image if save_augmentation is True
 
 
 ##############################################################################################################
-                        ### FILE DOWNLOADING AND ORGANIZATION CODE STARTS HERE ###
+        ### FILE DOWNLOADING AND ORGANIZATION CODE STARTS HERE ###
 ##############################################################################################################
-
-
-
-
 
     def _ensure_data_exists_or_download(self):
         """Downloads and extracts the COCO dataset into the data directory if it doesn't already exist."""
@@ -133,17 +133,16 @@ class DataSetCoco(Dataset):
         else:
             print(f"Files in {extract_path} already exist. Skipping download.")
 
-
-
     def move_images_with_persons_to_person_dir(self):
         img_dir = self.img_dir  # Image directory
         ann_file = self.ann_file  # Annotation JSON file
 
-        person_img_dir = os.path.join(img_dir, 'person')  # Person image directory
+        person_img_dir = os.path.join(
+            img_dir, 'person')  # Person image directory
 
         # Return if the person image directory already exists. Else create it and move images to it
         if os.path.exists(person_img_dir):
-            return 
+            return
         else:
             os.makedirs(person_img_dir)
 
@@ -153,7 +152,7 @@ class DataSetCoco(Dataset):
 
         # Extract category IDs for the 'person' class
         person_cat_id = [cat['id']
-                        for cat in data['categories'] if cat['name'] == 'person'][0]
+                         for cat in data['categories'] if cat['name'] == 'person'][0]
 
         # Get image ids of images containing persons
         img_ids_with_persons = [ann['image_id']
@@ -175,10 +174,8 @@ class DataSetCoco(Dataset):
         print(f"Done moving images with persons for dataset!")
 
 
-
-
 ##############################################################################################################
-                                ### PRODUCTION CODE STARTS HERE ###
+        ### PRODUCTION CODE STARTS HERE ###
 ##############################################################################################################
 
     def get_all_image_file_names(self):
@@ -189,12 +186,11 @@ class DataSetCoco(Dataset):
         - List[str]: The file names of all images.
         """
         all_image_ids = self.ids  # IDs of all images
-        all_image_infos = self.coco.loadImgs(all_image_ids)  # Load all image info from COCO
-        all_file_names = [img_info['file_name'] for img_info in all_image_infos]  # Extract file names
+        all_image_infos = self.coco.loadImgs(
+            all_image_ids)  # Load all image info from COCO
+        all_file_names = [img_info['file_name']
+                          for img_info in all_image_infos]  # Extract file names
         return all_file_names
-    
-
-
 
     def get_categories(self):
         """
@@ -203,9 +199,6 @@ class DataSetCoco(Dataset):
         """
         categories = self.coco.loadCats(self.coco.getCatIds())
         return [category['name'] for category in categories]
-
-
-
 
     def get_images_and_annotations(self, categories=[]):
         """
@@ -236,23 +229,18 @@ class DataSetCoco(Dataset):
 
         return data
 
-
-
-
     def __len__(self):
         """Returns the total number of samples in the dataset."""
         # Changed from len(self.coco.imgs) to len(self.ids) to account for the fact that we're only using images with persons in them
-        return len(self.ids) 
+        return len(self.ids)
 
-
-    
     def __getitem__(self, index):
         """
         Args:
             index (int): Index
 
         Returns:
-            
+
         """
         coco = self.coco
         img_id = self.ids[index]
@@ -267,39 +255,33 @@ class DataSetCoco(Dataset):
             # Modify the path to look inside the 'person' subfolder
             image_path = os.path.join(self.img_dir, 'person', path)
 
-        
-        img = Image.open(image_path).convert('RGB') # Open the image using PIL
-        img = transforms.ToTensor()(img) # Convert the PIL Image to a tensor
+        img = Image.open(image_path).convert('RGB')  # Open the image using PIL
+        img = transforms.ToTensor()(img)  # Convert the PIL Image to a tensor
 
-        ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ### 
-        img, bounding_boxes = self.crop_image(img, annotations, size=(512,512)) # Crop the image and adjust bounding boxes accordingly 
+        ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ###
+        # Crop the image and adjust bounding boxes accordingly
+        img, bounding_boxes = self.crop_image(
+            img, annotations, size=(512, 512))
         # img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
         # bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
-
 
         # # If training, apply data augmentation
         # if self.training:
         #     img = self.color_image(img) # Apply color augmentation
         #     img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
-    
 
-
-
-
-
-        img_height, img_width = img.shape[1:3]  # Get the width and height (after transforming the image if training)
-
+        # Get the width and height (after transforming the image if training)
+        img_height, img_width = img.shape[1:3]
 
         # The image is divided into a grid of size S x S. with each cell being of size 5 (confidence, x, y, w, h)
         label_tensor = torch.zeros((S, S, 5))
-
 
         # Convert COCO bounding boxes to YOLO format
         for bbox in bounding_boxes:
 
             # Find midpoint coordinate (x, y) of bounding box. Notice bbox is in format [x1, y1, width, height]
-            x_center = bbox[0] + (bbox[2] / 2) # Center is x1 + half of width
-            y_center = bbox[1] + (bbox[3] / 2) # Center is y1 + half of height
+            x_center = bbox[0] + (bbox[2] / 2)  # Center is x1 + half of width
+            y_center = bbox[1] + (bbox[3] / 2)  # Center is y1 + half of height
 
             # Normalize the coordinates
             x = x_center / img_width
@@ -307,28 +289,29 @@ class DataSetCoco(Dataset):
 
             # Normalize the width and height of the bounding box (relative to the image size)
             w = bbox[2] / img_width  # bbox[2] is the width of the bounding box
-            h = bbox[3] / img_height # bbox[3] is the height of the bounding box
-
+            # bbox[3] is the height of the bounding box
+            h = bbox[3] / img_height
 
             # Determine grid cell
             i, j = int(y * S), int(x * S)
-            x_cell_offset = x*S - j # Offset of midpoint x coordinate from the left side of the cell
-            y_cell_offset = y*S - i # Offset of midpoint y coordinate from the top side of the cell
-
+            x_cell_offset = x*S - j  # Offset of midpoint x coordinate from the left side of the cell
+            y_cell_offset = y*S - i  # Offset of midpoint y coordinate from the top side of the cell
 
             # Update cell values with the formula (P_c, x, y, w, h), where P_c is the probability of a person object being present in
             # the cell (Combined Objectness/class score), and (x, y) are the coordinates of the midpoint of the bounding box relative
             # to its grid cell, and (w, h) are the width and height of the bounding box relative to the whole image.
 
-            if label_tensor[i, j, 0] == 0: # If there's no object in the cell yet
+            if label_tensor[i, j, 0] == 0:  # If there's no object in the cell yet
 
-                label_tensor[i, j, 0] = 1 # Class score for "person" (Objectness/class score of the object being a "person" is true)
+                # Class score for "person" (Objectness/class score of the object being a "person" is true)
+                label_tensor[i, j, 0] = 1
 
                 # Set bounding box attributes
-                label_tensor[i, j, 1:5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
-            
-            else: # Choose the bounding box with the largest area
-                
+                label_tensor[i, j, 1:5] = torch.tensor(
+                    [x_cell_offset, y_cell_offset, w, h])
+
+            else:  # Choose the bounding box with the largest area
+
                 # Get the current bounding box attributes
                 current_w = label_tensor[i, j, 3]
                 current_h = label_tensor[i, j, 4]
@@ -340,13 +323,12 @@ class DataSetCoco(Dataset):
                 # If the new bounding box has a larger area, replace the old bounding box with the new one
                 if new_area > current_area:
 
-                    label_tensor[i, j, 0] = 1 # Class score for "person" (Objectness/class score of the object being a "person" is true)
+                    # Class score for "person" (Objectness/class score of the object being a "person" is true)
+                    label_tensor[i, j, 0] = 1
 
                     # Set bounding box attributes
-                    label_tensor[i, j, 1:5] = torch.tensor([x_cell_offset, y_cell_offset, w, h])
-
-
-
+                    label_tensor[i, j, 1:5] = torch.tensor(
+                        [x_cell_offset, y_cell_offset, w, h])
 
         # Save the data augmentation if save_augmentation is True
         if self.save_augmentation:
@@ -354,32 +336,26 @@ class DataSetCoco(Dataset):
                 'image': img,  # The transformed image tensor
                 'bboxes': bounding_boxes,  # The transformed bounding boxes
             }
-                
 
         return img, label_tensor
-    
-
-
-
-    
-
-
-
-
 
     def crop_image(self, img: torch.Tensor, original_annotations, size=None):
 
         if size is None:
             original_height, original_width = img.shape[1:3]
-            chosen_dim = random.choice([original_height, original_width])  # Chose to use original width or original height randomly for new size
-            scale_factor = random.uniform(0.8, 1.2) # Calculate a random scale factor between 0.8 and 1.2
+            # Chose to use original width or original height randomly for new size
+            chosen_dim = random.choice([original_height, original_width])
+            # Calculate a random scale factor between 0.8 and 1.2
+            scale_factor = random.uniform(0.8, 1.2)
 
-            new_size = (int(chosen_dim * scale_factor), int(chosen_dim * scale_factor)) # Calculate the new size
+            # Calculate the new size
+            new_size = (int(chosen_dim * scale_factor),
+                        int(chosen_dim * scale_factor))
             # Determine crop dimensions
             new_width, new_height = new_size
         else:
             new_width, new_height = size
-        
+
         # If the image dimensions are smaller than crop dimensions, pad the image
         padding_top = padding_bottom = padding_left = padding_right = 0
         if img.shape[1] < new_height or img.shape[2] < new_width:
@@ -387,9 +363,10 @@ class DataSetCoco(Dataset):
             padding_bottom = max(0, new_height - img.shape[1] - padding_top)
             padding_left = max(0, (new_width - img.shape[2]) // 2)
             padding_right = max(0, new_width - img.shape[2] - padding_left)
-            
-            img = torch.nn.functional.pad(img, (padding_left, padding_right, padding_top, padding_bottom), mode='constant', value=0)
-        
+
+            img = torch.nn.functional.pad(
+                img, (padding_left, padding_right, padding_top, padding_bottom), mode='constant', value=0)
+
         # Randomly choose a top-left corner for cropping
         max_x = img.shape[2] - new_width
         max_y = img.shape[1] - new_height
@@ -406,7 +383,8 @@ class DataSetCoco(Dataset):
         bounding_boxes = []
         processed_annotations = []
         for ann in original_annotations:
-            new_ann = copy.deepcopy(ann) if ann['category_id'] == person_cat_id else ann
+            new_ann = copy.deepcopy(
+                ann) if ann['category_id'] == person_cat_id else ann
 
             if new_ann['category_id'] == person_cat_id:
                 # Adjust 'bbox' for padding if necessary
@@ -430,16 +408,14 @@ class DataSetCoco(Dataset):
                     clipped_y2 = min(bbox[1] + bbox[3], y2)
 
                     # Convert clipped coordinates back to width/height format and adjust for new origin
-                    new_bbox = [clipped_x1 - x1, clipped_y1 - y1, clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
+                    new_bbox = [clipped_x1 - x1, clipped_y1 - y1,
+                                clipped_x2 - clipped_x1, clipped_y2 - clipped_y1]
                     bounding_boxes.append(new_bbox)
 
             processed_annotations.append(new_ann)
-            
 
         # Continue with your process, using new_img and processed_annotations as needed
         return new_img, bounding_boxes
-
-
 
     def color_image(self, img):
         """
@@ -459,8 +435,6 @@ class DataSetCoco(Dataset):
         )
         img = color_transforms(img)
         return img
-    
-
 
     def resize_image(self, img: torch.Tensor, bounding_boxes, size=(512, 512)):
         """
@@ -480,7 +454,8 @@ class DataSetCoco(Dataset):
         new_width, new_height = size
 
         # Resize the image to the new dimensions
-        img = transforms.Resize((new_height, new_width), antialias=True)(img) # type: ignore
+        img = transforms.Resize((new_height, new_width),
+                                antialias=True)(img)  # type: ignore
 
         # Calculate scaling factors for the bounding boxes
         width_scale = new_width / original_img_width
@@ -490,15 +465,14 @@ class DataSetCoco(Dataset):
         adjusted_bounding_boxes = []
         for bbox in bounding_boxes:
             adjusted_bbox = [
-                bbox[0] * width_scale, # x1
-                bbox[1] * height_scale, # y1
-                bbox[2] * width_scale, # x2
-                bbox[3] * height_scale, # y2
+                bbox[0] * width_scale,  # x1
+                bbox[1] * height_scale,  # y1
+                bbox[2] * width_scale,  # x2
+                bbox[3] * height_scale,  # y2
             ]
             adjusted_bounding_boxes.append(adjusted_bbox)
 
         return img, adjusted_bounding_boxes
-    
 
     def horizontal_flip_image(self, img, bounding_boxes):
         """
@@ -512,23 +486,25 @@ class DataSetCoco(Dataset):
         Tuple[Tensor, list]: Potentially flipped image and the adjusted list of bounding boxes.
         """
 
-        img_width = img.shape[2]  # We need the width to adjust the bounding box coordinates
+        # We need the width to adjust the bounding box coordinates
+        img_width = img.shape[2]
 
-        flipped_img = transforms.RandomHorizontalFlip(p=1)(img) # Flip the image horizontally with a probability of 0.5
+        # Flip the image horizontally with a probability of 0.5
+        flipped_img = transforms.RandomHorizontalFlip(p=1)(img)
 
         adjusted_bounding_boxes = []
         for bbox in bounding_boxes:
             # Calculate the new x-coordinate for the flipped image
-            new_x1 = img_width - bbox[0] - bbox[2]  # new_x1 is calculated as "width - old_x1 - old_width"
+            # new_x1 is calculated as "width - old_x1 - old_width"
+            new_x1 = img_width - bbox[0] - bbox[2]
 
             # The bounding box dimensions remain the same, only the origin (top-left corner) changes.
-            adjusted_bbox = [new_x1, bbox[1], bbox[2], bbox[3]]  # (x1, y1, width, height) format
+            # (x1, y1, width, height) format
+            adjusted_bbox = [new_x1, bbox[1], bbox[2], bbox[3]]
 
             adjusted_bounding_boxes.append(adjusted_bbox)
 
         return flipped_img, adjusted_bounding_boxes
-    
-
 
     def remove_small_bounding_boxes(self, bounding_boxes, min_size=20):
         """
@@ -543,18 +519,14 @@ class DataSetCoco(Dataset):
         """
         filtered_boxes = []
         for bbox in bounding_boxes:
-            width, height = bbox[2], bbox[3]  # Extracting width and height from the box representation
+            # Extracting width and height from the box representation
+            width, height = bbox[2], bbox[3]
 
             # Boxes must be at least min_size in both width and height
             if width >= min_size and height >= min_size:
                 filtered_boxes.append(bbox)
 
         return filtered_boxes
-
-
-
-
-
 
     def show_image_with_bboxes(self, index):
         """Displays both the original and cropped image with their bounding boxes side by side."""
@@ -575,12 +547,14 @@ class DataSetCoco(Dataset):
         original_image = Image.open(image_path).convert('RGB')
 
         if not self.save_augmentation:
-            print("You need to set save_augmentation to True to be able to visualize the data augmentation.")
+            print(
+                "You need to set save_augmentation to True to be able to visualize the data augmentation.")
             return
 
         # Ensure that there's an augmented image to display
         if self.augmented_records['image'] is None or self.augmented_records['bboxes'] is None:
-            print("No augmented image to display. Please make sure the augmentation was applied.")
+            print(
+                "No augmented image to display. Please make sure the augmentation was applied.")
             return
 
         # Retrieve the augmented image and bounding boxes
@@ -605,7 +579,8 @@ class DataSetCoco(Dataset):
 
         # Display the original image with original bounding boxes
         axarr[0].imshow(original_image)
-        draw_grid(axarr[0], *original_image.size)  # unpacking the size tuple directly
+        # unpacking the size tuple directly
+        draw_grid(axarr[0], *original_image.size)
 
         annIds_original = self.coco.getAnnIds(imgIds=img["id"])
         anns_original = self.coco.loadAnns(annIds_original)
@@ -614,7 +589,8 @@ class DataSetCoco(Dataset):
         for ann in anns_original:
             if ann['category_id'] == person_cat_id and 'bbox' in ann:
                 bbox = ann['bbox']
-                rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
+                rect = patches.Rectangle(
+                    (bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
                 axarr[0].add_patch(rect)
 
         axarr[0].set_title('Original Image')
@@ -625,7 +601,8 @@ class DataSetCoco(Dataset):
         draw_grid(axarr[1], augmented_width, augmented_height)
 
         for bbox in bounding_boxes:
-            rect = patches.Rectangle((bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
+            rect = patches.Rectangle(
+                (bbox[0], bbox[1]), bbox[2], bbox[3], linewidth=1, edgecolor='r', facecolor='none')
             axarr[1].add_patch(rect)
 
         axarr[1].set_title('Augmented Image')
@@ -634,17 +611,6 @@ class DataSetCoco(Dataset):
         plt.tight_layout()
         plt.show()
 
-
-
-
-
-
-
-
-
-
-
-    
 
 def compute_iou(bbox, cell_bbox):
     # Given a bounding box and a cell, compute the IoU
@@ -660,28 +626,19 @@ def compute_iou(bbox, cell_bbox):
 
     # Calculate intersection area
     inter_area = max(inter_x2 - inter_x1, 0) * max(inter_y2 - inter_y1, 0)
-    
+
     # Calculate union area
     bbox_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
     cell_area = (cell_bbox[2] - cell_bbox[0]) * (cell_bbox[3] - cell_bbox[1])
     union_area = bbox_area + cell_area - inter_area
-    
+
     # Calculate IoU
     iou = inter_area / union_area
 
     return iou
 
 
-
-
-
-
-
-
-
-
 # TO ShOW LABELS FORMAT
-
 # Create an instance of the DataSetCoco class for the TRAIN dataset
 '''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
@@ -694,6 +651,3 @@ print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['f
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
 coco_data.show_image_with_bboxes(index_to_test)'''
-
-
-

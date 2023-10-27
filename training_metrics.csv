@@ -1,0 +1,3 @@
+Epoch,Train_Loss,Validation_Loss,Correct,Localization,Similar,Other,Background,Total_Bounding_Boxes
+0,20.78012180328369,18.44016933441162
+1,19.69591236114502,19.046592712402344
