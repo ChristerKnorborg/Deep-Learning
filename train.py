@@ -214,8 +214,10 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     # Open the CSV file once before you start the epochs.
     csv_file = open("training_metrics.csv", "w", newline='')
     writer = csv.writer(csv_file)
-    writer.writerow(["Epoch", "Train_Loss", "Validation_Loss", "Correct",
-                    "Localization", "Similar", "Other", "Background", "Total_Bounding_Boxes"])
+    writer.writerow(['Epoch', 'Train Loss', 'Validation Loss',
+                     'Correct Predictions', 'Localization Errors',
+                     'Similar Object Errors', 'Other Errors',
+                     'Background Predictions', 'Total Bounding Boxes'])
 
     # Define the fine-tuning phase start
     start_fine_tuning_epoch = num_epochs - fine_tuning_epochs
@@ -314,7 +316,19 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                 best_model_wts = copy.deepcopy(model.state_dict())
 
         # write the most recent losses after each epoch
-        writer.writerow([epoch, losses[TRAIN][-1], losses[VALIDATION][-1]])
+            csvEpochSave = 5
+            if epoch % csvEpochSave == 0 and phase == VALIDATION:
+                print("bing")
+                writer.writerow([epoch, 0, epoch_loss,
+                                 all_correct, all_localization,
+                                 all_similar, all_other,
+                                 all_background, all_bounding_boxes])
+            if epoch % csvEpochSave == 0 and phase == TRAIN:
+                print("bong")
+                writer.writerow([epoch, epoch_loss, 0,
+                                 all_correct, all_localization,
+                                 all_similar, all_other,
+                                 all_background, all_bounding_boxes])
 
     csv_file.close()
 
@@ -357,7 +371,7 @@ def main():  # Encapsulating in main function
 
     # Start training process
     model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler,
-                  num_epochs=1500, chosen_train_images=train_images_to_include)
+                  num_epochs=15, chosen_train_images=train_images_to_include)
 
 
 # The following is the standard boilerplate that calls the main() function.
