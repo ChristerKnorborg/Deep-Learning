@@ -180,7 +180,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_acc = 0.0
 
     SUBSET_SIZE = 16
-    BATCH_SIZE = 8
+    BATCH_SIZE = 16
 
     image_datasets = {
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE, chosen_images=chosen_train_images),
@@ -334,9 +334,6 @@ def main():  # Encapsulating in main function
     model = model.to(DEVICE)  # Use GPU if available
 
     criterion = YOLOLoss()  # Loss function
-    # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)  # Observe that all parameters are being optimized
-    optimizer = optim.Adam(model.parameters())
-    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=300, gamma=0.25)  # Decay LR by a factor of 0.1 every 7 epochs
     train_images_to_include = ["000000097822.jpg", "000000209274.jpg", "000000468537.jpg",
                                "000000288733.jpg",
                                "000000370207.jpg",
@@ -351,9 +348,16 @@ def main():  # Encapsulating in main function
                                "000000533807.jpg",
                                "000000145217.jpg",
                                "000000298327.jpg"]
+    # Observe that all parameters are being optimized
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    # optimizer = optim.Adam(model.parameters())
+    # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = lr_scheduler.StepLR(
+        optimizer, step_size=300, gamma=0.25)
+
     # Start training process
-    model = train(model, criterion, optimizer,
-                  num_epochs=1500, fine_tuning_epochs=200, chosen_train_images=train_images_to_include)
+    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler,
+                  num_epochs=1500, chosen_train_images=train_images_to_include)
 
 
 # The following is the standard boilerplate that calls the main() function.
