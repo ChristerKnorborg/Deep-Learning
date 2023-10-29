@@ -316,7 +316,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                 best_model_wts = copy.deepcopy(model.state_dict())
 
         # write the most recent losses after each epoch
-            csvEpochSave = 5
+            csvEpochSave = 10
             if epoch % csvEpochSave == 0 and phase == VALIDATION:
                 print("bing")
                 writer.writerow([epoch, 0, epoch_loss,
@@ -348,30 +348,34 @@ def main():  # Encapsulating in main function
     model = model.to(DEVICE)  # Use GPU if available
 
     criterion = YOLOLoss()  # Loss function
-    train_images_to_include = ["000000097822.jpg", "000000209274.jpg", "000000468537.jpg",
-                               "000000288733.jpg",
-                               "000000370207.jpg",
-                               "000000313356.jpg",
-                               "000000117941.jpg",
-                               "000000255941.jpg",
-                               "000000165133.jpg",
-                               "000000579713.jpg",
-                               "000000198327.jpg",
-                               "000000571039.jpg",
-                               "000000440273.jpg",
-                               "000000533807.jpg",
-                               "000000145217.jpg",
-                               "000000298327.jpg"]
+    train_images_to_include = ["000000348140.jpg",
+                               "000000077332.jpg",
+                               "000000058831.jpg",
+                               "000000500543.jpg",
+                               "000000534275.jpg",
+                               "000000470832.jpg",
+                               "000000100638.jpg",
+                               "000000377183.jpg",
+                               "000000278265.jpg",
+                               "000000377592.jpg",
+                               "000000260223.jpg",
+                               "000000050576.jpg",
+                               "000000487904.jpg",
+                               "000000298933.jpg",
+                               "000000336464.jpg",
+                               "000000025041.jpg"]
     # Observe that all parameters are being optimized
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    # optimizer = optim.Adam(model.parameters())
+    # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.Adam(model.parameters())
     # Decay LR by a factor of 0.1 every 7 epochs
     exp_lr_scheduler = lr_scheduler.StepLR(
         optimizer, step_size=300, gamma=0.25)
 
     # Start training process
-    model = train(model, criterion, optimizer, scheduler=exp_lr_scheduler,
-                  num_epochs=15, chosen_train_images=train_images_to_include)
+    model = train(model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
+                  num_epochs=1501, chosen_train_images=train_images_to_include)
+
+    #
 
 
 # The following is the standard boilerplate that calls the main() function.
