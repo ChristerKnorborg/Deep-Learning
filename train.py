@@ -179,16 +179,17 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
-    SUBSET_SIZE = 16
-    BATCH_SIZE = 16
+    SUBSET_SIZE = 10000
+    BATCH_SIZE = 64
+    VALIDATION_SIZE = 2000  # 2000 images for validation
 
     image_datasets = {
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE, chosen_images=chosen_train_images),
         VALIDATION: DataSetCoco(DataSetType.VALIDATION,
-                                training=False, subset_size=SUBSET_SIZE)
+                                training=False, subset_size=VALIDATION_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=False,)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -316,7 +317,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                 best_model_wts = copy.deepcopy(model.state_dict())
 
         # write the most recent losses after each epoch
-            csvEpochSave = 10
+            csvEpochSave = 1
             if epoch % csvEpochSave == 0 and phase == VALIDATION:
                 print("bing")
                 writer.writerow([epoch, 0, epoch_loss,
@@ -366,14 +367,18 @@ def main():  # Encapsulating in main function
                                "000000025041.jpg"]
     # Observe that all parameters are being optimized
     # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+
+    # following the parameters of the paper
     optimizer = optim.Adam(model.parameters())
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(
-        optimizer, step_size=300, gamma=0.25)
+    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.25)
 
     # Start training process
-    model = train(model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
-                  num_epochs=1501, chosen_train_images=train_images_to_include)
+    model = train(
+        model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
+        num_epochs=26, fine_tuning_epochs=5,
+        # chosen_train_images=train_images_to_include
+    )
 
     #
 

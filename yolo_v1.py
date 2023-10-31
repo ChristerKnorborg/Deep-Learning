@@ -48,9 +48,6 @@ class Yolo_v1(nn.Module):
             nn.Flatten(),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.1),  # 0.1 is used in the paper
-            self.xavier_linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.5),
             self.xavier_linear(512, prediction_tensor),
             nn.BatchNorm1d(prediction_tensor),
             # self.xavier_linear(512, prediction_tensor),
