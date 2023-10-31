@@ -376,7 +376,7 @@ def main():  # Encapsulating in main function
     # Start training process
     model = train(
         model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
-        num_epochs=26, fine_tuning_epochs=5,
+        num_epochs=51, fine_tuning_epochs=11,
         # chosen_train_images=train_images_to_include
     )
 
