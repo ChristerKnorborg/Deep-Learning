@@ -67,7 +67,6 @@ def compute_accuracy(preds, labels):
     correct = 0
     localization = 0
     # This variable is not used in your original function; consider its purpose.
-    similar = 0
     other = 0
     background = 0
     total_bounding_boxes = 0
@@ -106,7 +105,7 @@ def compute_accuracy(preds, labels):
 
                     total_bounding_boxes += 1  # Only count the bounding boxes where there is a person
 
-    return correct, localization, similar, other, background, total_bounding_boxes
+    return correct, localization, other, background, total_bounding_boxes
 
 
 def plot_training_results(losses, metrics, num_epochs):
@@ -217,7 +216,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     writer = csv.writer(csv_file)
     writer.writerow(['Epoch', 'Train Loss', 'Validation Loss',
                      'Correct Predictions', 'Localization Errors',
-                     'Similar Object Errors', 'Other Errors',
+                     'Other Errors',
                      'Background Predictions', 'Total Bounding Boxes'])
 
     # Define the fine-tuning phase start
@@ -250,7 +249,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
 
             all_correct = 0
             all_localization = 0
-            all_similar = 0
+
             all_other = 0
             all_background = 0
             all_bounding_boxes = 0
@@ -272,11 +271,10 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                     loss = criterion(outputs, labels)
 
                     # Compute accuracy metrics
-                    correct, localization, similar, other, background, bounding_boxes = compute_accuracy(
+                    correct, localization, other, background, bounding_boxes = compute_accuracy(
                         outputs, labels)
                     all_correct += correct
                     all_localization += localization
-                    all_similar += similar
                     all_other += other
                     all_background += background
                     all_bounding_boxes += bounding_boxes
@@ -294,7 +292,6 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
             print(f"{phase} Correct Predictions: {all_correct}")
             print(f"{phase} Localization Errors: {all_localization}")
-            print(f"{phase} Similar Object Errors: {all_similar}")
             print(f"{phase} Other Errors: {all_other}")
             print(f"{phase} Background Predictions: {all_background}")
             print(f"{phase} Total Bounding Boxes: {all_bounding_boxes}")
@@ -304,7 +301,6 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             metrics[phase][epoch] = {
                 "correct": all_correct,
                 "localization": all_localization,
-                "similar": all_similar,
                 "other": all_other,
                 "background": all_background
             }
@@ -321,14 +317,12 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             if epoch % csvEpochSave == 0 and phase == VALIDATION:
                 print("bing")
                 writer.writerow([epoch, 0, epoch_loss,
-                                 all_correct, all_localization,
-                                 all_similar, all_other,
+                                 all_correct, all_localization, all_other,
                                  all_background, all_bounding_boxes])
             if epoch % csvEpochSave == 0 and phase == TRAIN:
                 print("bong")
                 writer.writerow([epoch, epoch_loss, 0,
-                                 all_correct, all_localization,
-                                 all_similar, all_other,
+                                 all_correct, all_localization, all_other,
                                  all_background, all_bounding_boxes])
 
     csv_file.close()
