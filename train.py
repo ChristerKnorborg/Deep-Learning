@@ -182,9 +182,9 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
-    SUBSET_SIZE = 1000
-    BATCH_SIZE = 32
-    VALIDATION_SIZE = 200  # 2000 images for validation
+    SUBSET_SIZE = 10000
+    BATCH_SIZE = 64
+    VALIDATION_SIZE = 2000  # 2000 images for validation
 
     image_datasets = {
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE, chosen_images=chosen_train_images),
@@ -192,7 +192,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                                 training=False, subset_size=VALIDATION_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -226,7 +226,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     # Define the fine-tuning phase start
     start_fine_tuning_epoch = num_epochs - fine_tuning_epochs
 
-    for epoch in range(num_epochs):
+    for epoch in range(1, num_epochs + 1):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
         print('----------')
 
@@ -377,7 +377,7 @@ def main():  # Encapsulating in main function
     # Start training process
     model = train(
         model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
-        num_epochs=51, fine_tuning_epochs=11,
+        num_epochs=60, fine_tuning_epochs=20,
         # chosen_train_images=train_images_to_include
     )
 
