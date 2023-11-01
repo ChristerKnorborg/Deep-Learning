@@ -68,6 +68,7 @@ def compute_accuracy(preds, labels):
     localization = 0
     # This variable is not used in your original function; consider its purpose.
     other = 0
+    otherbighalf = 0
     background = 0
     total_bounding_boxes = 0
 
@@ -101,11 +102,14 @@ def compute_accuracy(preds, labels):
                     elif pred_person_prob > 0.5 and iou <= 0.1:
                         background += 1
                     elif iou > 0.1:
-                        other += 1  # All other cases as "other"
+                        if iou <= 0.5:
+                            other += 1  # All other cases as "other"
+                        if iou > 0.5:
+                            otherbighalf += 1
 
                     total_bounding_boxes += 1  # Only count the bounding boxes where there is a person
 
-    return correct, localization, other, background, total_bounding_boxes
+    return correct, localization, other, background, total_bounding_boxes, otherbighalf
 
 
 def plot_training_results(losses, metrics, num_epochs):
@@ -178,9 +182,9 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
-    SUBSET_SIZE = 10000
-    BATCH_SIZE = 64
-    VALIDATION_SIZE = 2000  # 2000 images for validation
+    SUBSET_SIZE = 1000
+    BATCH_SIZE = 32
+    VALIDATION_SIZE = 200  # 2000 images for validation
 
     image_datasets = {
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE, chosen_images=chosen_train_images),
@@ -188,7 +192,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                                 training=False, subset_size=VALIDATION_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -251,6 +255,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             all_localization = 0
 
             all_other = 0
+            all_otherbighalf = 0
             all_background = 0
             all_bounding_boxes = 0
 
@@ -271,11 +276,12 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                     loss = criterion(outputs, labels)
 
                     # Compute accuracy metrics
-                    correct, localization, other, background, bounding_boxes = compute_accuracy(
+                    correct, localization, other, background, bounding_boxes, otherbighalf = compute_accuracy(
                         outputs, labels)
                     all_correct += correct
                     all_localization += localization
                     all_other += other
+                    all_otherbighalf += otherbighalf
                     all_background += background
                     all_bounding_boxes += bounding_boxes
 
@@ -293,6 +299,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             print(f"{phase} Correct Predictions: {all_correct}")
             print(f"{phase} Localization Errors: {all_localization}")
             print(f"{phase} Other Errors: {all_other}")
+            print(f"{phase} Other Errors with prob > 0.5: {all_otherbighalf}")
             print(f"{phase} Background Predictions: {all_background}")
             print(f"{phase} Total Bounding Boxes: {all_bounding_boxes}")
 

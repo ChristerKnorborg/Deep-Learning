@@ -7,6 +7,7 @@ from PIL import Image
 from model_constants import S, B, DEVICE
 from yolo_v1 import Yolo_v1
 
+
 def display_predictions(model_path, original_image, confidence_threshold=0.5):
     """
     Display the original and predicted images side-by-side.
@@ -79,29 +80,26 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
             if confidence >= confidence_threshold:
                 # Calculate absolute coordinates and dimensions
                 x_center, y_center, width, height = bbox
-                x_center, y_center = x_center * cell_width + i * cell_width, y_center * cell_height + j * cell_height
-                width, height = width * original_image.size[0], height * original_image.size[1]
+                x_center, y_center = x_center * cell_width + i * \
+                    cell_width, y_center * cell_height + j * cell_height
+                width, height = width * \
+                    original_image.size[0], height * original_image.size[1]
 
                 # Convert to top-left corner coordinates
                 x_corner, y_corner = x_center - width / 2, y_center - height / 2
 
                 # Draw the bounding box
-                rect = patches.Rectangle((x_corner, y_corner), width, height, linewidth=1, edgecolor='r', facecolor='none')
+                rect = patches.Rectangle(
+                    (x_corner, y_corner), width, height, linewidth=1, edgecolor='r', facecolor='none')
                 axarr[1].add_patch(rect)
 
     plt.tight_layout()
     plt.show()
 
 
-
-
-
-test_image = "data/train2017/person/000000468420.jpg" # Snowboarder image
+test_image = "data/train2017/person/000000000459.jpg"  # Snowboarder image
 original_image = Image.open(test_image)
-model_path = "models/model_10-26_17_epoch-1500_LR-0.0001_step-none_gamma-none_subset-16_batch-8.pth"
+model_path = "models/model_11-01_12_epoch-51_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth"
 
 
 display_predictions(model_path, original_image, confidence_threshold=0.7)
-
-
-
