@@ -10,6 +10,7 @@ from typing import Any
 import requests
 import zipfile
 from pycocotools.coco import COCO
+import torchvision.transforms.functional as F
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -262,15 +263,14 @@ class DataSetCoco(Dataset):
 
         ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ###
         # Crop the image and adjust bounding boxes accordingly
-        img, bounding_boxes = self.crop_image(
-            img, annotations, size=(512, 512))
-        # img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
-        # bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
+        img, bounding_boxes = self.crop_image(img, annotations)
+        img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
+        bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
 
-        # # If training, apply data augmentation
-        # if self.training:
-        #     img = self.color_image(img) # Apply color augmentation
-        #     img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
+        # If training, apply data augmentation
+        if self.training:
+            img = self.color_image(img) # Apply color augmentation
+            img, bounding_boxes = self.horizontal_flip_image(img, bounding_boxes) # Apply horizontal flip with 0.5 probability
 
         # Get the width and height (after transforming the image if training)
         img_height, img_width = img.shape[1:3]
@@ -507,8 +507,10 @@ class DataSetCoco(Dataset):
             adjusted_bounding_boxes.append(adjusted_bbox)
 
         return flipped_img, adjusted_bounding_boxes
+    
+    
 
-    def remove_small_bounding_boxes(self, bounding_boxes, min_size=20):
+    def remove_small_bounding_boxes(self, bounding_boxes, min_size=25):
         """
         Filters out bounding boxes that are below a certain size threshold.
 
