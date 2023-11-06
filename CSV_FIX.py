@@ -1,8 +1,8 @@
 import csv
 
 # Define the input and output CSV file names
-input_csv = 'model4.csv'  # Your current CSV file
-output_csv = 'model4Fixed.csv'  # The new CSV file to be created
+input_csv = 'Model5ADAM1000DataAugmentation.csv'  # Your current CSV file
+output_csv = 'Model5ADAM1000DataAugmentationFixed.csv'  # The new CSV file to be created
 
 # Initialize containers for the training and validation data
 training_data = {}
