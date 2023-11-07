@@ -64,6 +64,18 @@ def bbox_iou(prediction_box, label_box):
 
 
 def compute_accuracy(preds, labels):
+
+    # TP Means the label is good, the class is good, and the IOU is good
+    TP_class_loca_good = 0
+    # FP means the label is bad
+    FP_class_good_IOU_bad = 0
+    FP_class_bad_IOU_good = 0
+    FP_class_IOU_good = 0
+    # FN means the label is good, but the prediction does not choose it
+    FN_class_good_IOU_bad = 0
+    FN_class_bad_IOU_good = 0
+    FN_class_bad_IOU_bad = 0
+
     correct = 0
     localization = 0
     # This variable is not used in your original function; consider its purpose.
@@ -88,6 +100,33 @@ def compute_accuracy(preds, labels):
                 label_person_prob = labels[b, i, j, 0].item()
 
                 # Only consider cells where the label indicates there is an object
+
+                # if the label is 1. IE person class in grid and the prediction class is > 0.5 and localization IOU > 0.5
+                if label_person_prob == 1:
+                    iou1 = bbox_iou(pred_bbox1, label_bbox)
+                    iou2 = bbox_iou(pred_bbox2, label_bbox)
+                    iou = max(iou1, iou2)
+
+                    if pred_person_prob >= 0.5 and iou >= 0.5:
+                        TP_class_loca_good += 1
+                    if pred_person_prob < 0.5 and iou >= 0.5:
+                        FN_class_bad_IOU_good += 1
+                    if pred_person_prob >= 0.5 and iou < 0.5:
+                        FN_class_good_IOU_bad += 1
+                    if pred_person_prob < 0.5 and iou < 0.5:
+                        FN_class_bad_IOU_bad += 1
+
+                if label_person_prob != 1:
+                    iou1 = bbox_iou(pred_bbox1, label_bbox)
+                    iou2 = bbox_iou(pred_bbox2, label_bbox)
+                    iou = max(iou1, iou2)
+                    if pred_person_prob >= 0.5 and iou >= 0.5:
+                        FP_class_IOU_good += 1
+                    if pred_person_prob < 0.5 and iou >= 0.5:
+                        FP_class_bad_IOU_good += 1
+                    if pred_person_prob >= 0.5 and iou < 0.5:
+                        FP_class_good_IOU_bad += 1
+
                 if label_person_prob == 1:
                     # Find the predicted bbox with the highest IoU
                     iou1 = bbox_iou(pred_bbox1, label_bbox)
@@ -109,7 +148,7 @@ def compute_accuracy(preds, labels):
 
                     total_bounding_boxes += 1  # Only count the bounding boxes where there is a person
 
-    return correct, localization, other, background, total_bounding_boxes, otherbighalf
+    return correct, localization, other, background, total_bounding_boxes, otherbighalf, TP_class_loca_good, FP_class_bad_IOU_good, FP_class_good_IOU_bad, FP_class_IOU_good, FN_class_good_IOU_bad, FN_class_bad_IOU_good, FN_class_bad_IOU_bad
 
 
 def plot_training_results(losses, metrics, num_epochs):
@@ -182,9 +221,9 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
-    SUBSET_SIZE = 10000
-    BATCH_SIZE = 64
-    VALIDATION_SIZE = 2000  # 2000 images for validation
+    SUBSET_SIZE = 100
+    BATCH_SIZE = 10
+    VALIDATION_SIZE = 20  # 2000 images for validation
 
     image_datasets = {
         TRAIN: DataSetCoco(DataSetType.TRAIN, training=True, subset_size=SUBSET_SIZE, chosen_images=chosen_train_images),
@@ -192,7 +231,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                                 training=False, subset_size=VALIDATION_SIZE)
     }
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    dataloaders = {x: DataLoader(image_datasets[x], batch_size=BATCH_SIZE, shuffle=True)
                    for x in [TRAIN, VALIDATION]}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in [TRAIN, VALIDATION]}
@@ -221,7 +260,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
     writer.writerow(['Epoch', 'Train Loss', 'Validation Loss',
                      'Correct Predictions', 'Localization Errors',
                      'Other Errors',
-                     'Background Predictions', 'Total Bounding Boxes'])
+                     'Background Predictions', 'Total Bounding Boxes', 'TP_class_loca_good', 'FP_class_bad_IOU_good', 'FP_class_good_IOU_bad', 'FP_class_IOU_good', 'FN_class_good_IOU_bad', 'FN_class_bad_IOU_good', 'FN_class_bad_IOU_bad'])
 
     # Define the fine-tuning phase start
     start_fine_tuning_epoch = num_epochs - fine_tuning_epochs
@@ -259,6 +298,17 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             all_background = 0
             all_bounding_boxes = 0
 
+            # TP Means the label is good, the class is good, and the IOU is good
+            all_TP_class_loca_good = 0
+            # FP means the label is bad
+            all_FP_class_good_IOU_bad = 0
+            all_FP_class_bad_IOU_good = 0
+            all_FP_class_IOU_good = 0
+            # FN means the label is good, but the prediction does not choose it
+            all_FN_class_good_IOU_bad = 0
+            all_FN_class_bad_IOU_good = 0
+            all_FN_class_bad_IOU_bad = 0
+
             # Print progress within an epoch
             total_batches = len(dataloaders[phase])
 
@@ -276,7 +326,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                     loss = criterion(outputs, labels)
 
                     # Compute accuracy metrics
-                    correct, localization, other, background, bounding_boxes, otherbighalf = compute_accuracy(
+                    correct, localization, other, background, bounding_boxes, otherbighalf, TP_class_loca_good, FP_class_bad_IOU_good, FP_class_good_IOU_bad, FP_class_IOU_good, FN_class_good_IOU_bad, FN_class_bad_IOU_good, FN_class_bad_IOU_bad = compute_accuracy(
                         outputs, labels)
                     all_correct += correct
                     all_localization += localization
@@ -284,6 +334,13 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                     all_otherbighalf += otherbighalf
                     all_background += background
                     all_bounding_boxes += bounding_boxes
+                    all_TP_class_loca_good += TP_class_loca_good
+                    all_FP_class_bad_IOU_good += FP_class_bad_IOU_good
+                    all_FP_class_good_IOU_bad += FP_class_good_IOU_bad
+                    all_FP_class_IOU_good += FP_class_IOU_good
+                    all_FN_class_good_IOU_bad += FN_class_good_IOU_bad
+                    all_FN_class_bad_IOU_good += FN_class_bad_IOU_good
+                    all_FN_class_bad_IOU_bad += FN_class_bad_IOU_bad
 
                     if phase == TRAIN:
                         loss.backward()
@@ -302,6 +359,13 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             print(f"{phase} Other Errors with prob > 0.5: {all_otherbighalf}")
             print(f"{phase} Background Predictions: {all_background}")
             print(f"{phase} Total Bounding Boxes: {all_bounding_boxes}")
+            print(f"{phase} TP_class_loca_good: {all_TP_class_loca_good}")
+            print(f"{phase} FP_class_bad_IOU_good: {all_FP_class_bad_IOU_good}")
+            print(f"{phase} FP_class_good_IOU_bad: {all_FP_class_good_IOU_bad}")
+            print(f"{phase} FP_class_IOU_good: {all_FP_class_IOU_good}")
+            print(f"{phase} FN_class_good_IOU_bad: {all_FN_class_good_IOU_bad}")
+            print(f"{phase} FN_class_bad_IOU_good: {all_FN_class_bad_IOU_good}")
+            print(f"{phase} FN_class_bad_IOU_bad: {all_FN_class_bad_IOU_bad}")
 
             # Save the metrics for this epoch
             losses[phase].append(epoch_loss)
@@ -309,7 +373,13 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
                 "correct": all_correct,
                 "localization": all_localization,
                 "other": all_other,
-                "background": all_background
+                "background": all_background,
+                "TP_class_loca_good": all_TP_class_loca_good,
+                "FP_class_bad_IOU_good": all_FP_class_bad_IOU_good,
+                "FP_class_good_IOU_bad": all_FP_class_good_IOU_bad,
+                "FP_class_IOU_good": all_FP_class_IOU_good,
+                "FN_class_good_IOU_bad": all_FN_class_good_IOU_bad,
+                "FN_class_bad_IOU_good": all_FN_class_bad_IOU_good,
             }
 
             epoch_acc = all_correct / dataset_sizes[phase]
@@ -322,15 +392,15 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
         # write the most recent losses after each epoch
             csvEpochSave = 1
             if epoch % csvEpochSave == 0 and phase == VALIDATION:
-                print("bing")
+
                 writer.writerow([epoch, 0, epoch_loss,
                                  all_correct, all_localization, all_other,
-                                 all_background, all_bounding_boxes])
+                                 all_background, all_bounding_boxes, all_TP_class_loca_good, all_FP_class_bad_IOU_good, all_FP_class_good_IOU_bad, all_FP_class_IOU_good, all_FN_class_good_IOU_bad, all_FN_class_bad_IOU_good, all_FN_class_bad_IOU_bad])
             if epoch % csvEpochSave == 0 and phase == TRAIN:
-                print("bong")
+
                 writer.writerow([epoch, epoch_loss, 0,
                                  all_correct, all_localization, all_other,
-                                 all_background, all_bounding_boxes])
+                                 all_background, all_bounding_boxes, all_TP_class_loca_good, all_FP_class_bad_IOU_good, all_FP_class_good_IOU_bad, all_FP_class_IOU_good, all_FN_class_good_IOU_bad, all_FN_class_bad_IOU_good, all_FN_class_bad_IOU_bad])
 
     csv_file.close()
 
