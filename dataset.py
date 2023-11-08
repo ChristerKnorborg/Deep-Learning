@@ -25,6 +25,7 @@ from PIL import Image
 import random
 TRAIN = "./data/train2017"
 VALIDATION = "./data/val2017"
+TEST = "./data/test2017"
 
 
 # Define the DataSetType enum
@@ -651,6 +652,8 @@ def compute_iou(bbox, cell_bbox):
 
 
 # TO ShOW LABELS FORMAT
+coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
+coco_data.get_categories()
 # Create an instance of the DataSetCoco class for the TRAIN dataset
 '''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
