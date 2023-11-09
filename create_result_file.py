@@ -1,23 +1,23 @@
 import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from dataset import DataSetCoco, DataSetType, TEST
+from dataset import DataSetCoco, DataSetType, VALIDATION
 from model_constants import S, B, DEVICE
 from yolo_v1 import Yolo_v1
 import json
 
 
 
-def run_test_examples(model_path):
+def run_examples_and_create_file(model_path):
 
 
     image_datasets = {
-        TEST: DataSetCoco(DataSetType.TEST, training=False)
+        VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False)
     }
 
-    dataloaders = {DataLoader(image_datasets[TEST], shuffle=True)}
+    dataloaders = {VALIDATION: DataLoader(image_datasets[VALIDATION], shuffle=True)}
 
-    dataset_sizes = {len(image_datasets[TEST])}
+    dataset_sizes = {len(image_datasets[VALIDATION])}
 
 
     # Put the model in eval mode and perform a forward pass to get the predictions
@@ -34,7 +34,7 @@ def run_test_examples(model_path):
     for param in model.fc.parameters():
         param.requires_grad = False
 
-    for _, (inputs, labels) in enumerate(dataloaders[TEST], start=1):
+    for _, (inputs, labels) in enumerate(dataloaders[VALIDATION]):
         outputs = model(inputs)
         predictions = torch.squeeze(outputs, 0)
 
@@ -61,6 +61,9 @@ def run_test_examples(model_path):
                 "score": cell_data[5],
                 }]
 
-                with open('resultfile.txt', 'w') as txtfile:
-                    json.dump(data_box1, txtfile)
-                    json.dump(data_box2, txtfile)
+                with open('detections_val2017_YoloV1PersonAUHoldet.json', 'w') as jsonfile:
+                    json.dump(data_box1, jsonfile)
+                    json.dump(data_box2, jsonfile)
+
+
+run_examples_and_create_file("./models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
