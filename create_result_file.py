@@ -6,6 +6,15 @@ from model_constants import S, B, DEVICE
 from yolo_v1 import Yolo_v1
 import json
 
+def convert_to_coco_format(bbox, img_width, img_height):
+    # Convert from [center-x, center-y, width, height] to [x-top-left, y-top-left, width, height]
+    x_center, y_center, w, h = bbox
+    x_top_left = (x_center - w / 2) * img_width
+    y_top_left = (y_center - h / 2) * img_height
+    w = w * img_width
+    h = h * img_height
+    return [x_top_left, y_top_left, w, h]
+
 
 
 def run_examples_and_create_file(model_path):
@@ -65,13 +74,20 @@ def run_examples_and_create_file(model_path):
                     confidence = cell_data[5].item()
                     bbox = cell_data[6:10].tolist()
 
+
+                img_width, img_height = inputs.shape[2], inputs.shape[3]  # Assuming inputs is a tensor of shape [batch_size, channels, height, width]
+                bbox = convert_to_coco_format(bbox, img_width, img_height)
+
                 #JSON data must match COCO format:
                 # https://cocodataset.org/#format-results
+
+
+
 
                 # category_id is always 0 as we only guess persons
                 data_box = {
                 "image_id": img_id.item(),
-                "category_id": 0,
+                "category_id": 1,
                 "bbox": bbox,
                 "score": confidence,
                 }
