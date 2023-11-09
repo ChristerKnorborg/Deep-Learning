@@ -37,6 +37,13 @@ def run_examples_and_create_file(model_path):
     for param in model.fc.parameters():
         param.requires_grad = False
 
+
+
+
+     
+    # Create an empty list to store all detection boxes
+    all_data_boxes = []   
+
     for _, (inputs, labels, img_id) in enumerate(dataloaders[VALIDATION]):
         outputs = model(inputs)
         predictions = torch.squeeze(outputs, 0)
@@ -69,8 +76,11 @@ def run_examples_and_create_file(model_path):
                 "score": confidence,
                 }]
 
-                with open('detections_val2017_YoloV1PersonAUHoldet.json', 'w') as jsonfile:
-                    json.dump(data_box, jsonfile)
+                all_data_boxes.append(data_box)
+
+
+    with open('detections_val2017_YoloV1PersonAUHoldet.json', 'w') as jsonfile:
+                    json.dump(all_data_boxes, jsonfile)      
 
 
 run_examples_and_create_file("./models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
