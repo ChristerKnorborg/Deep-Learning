@@ -6,13 +6,24 @@ from model_constants import S, B, DEVICE
 from yolo_v1 import Yolo_v1
 import json
 
-def convert_to_coco_format(bbox, img_width, img_height):
-    # Convert from [center-x, center-y, width, height] to [x-top-left, y-top-left, width, height]
-    x_center, y_center, w, h = bbox
-    x_top_left = (x_center - w / 2) * img_width
-    y_top_left = (y_center - h / 2) * img_height
-    w = w * img_width
-    h = h * img_height
+def convert_to_coco_format(bbox, cell_index, img_width, img_height, S):
+    # bbox contains [center-x, center-y, width, height] relative to the cell
+    # cell_index is a tuple (i, j) representing the cell's row and column index
+    i, j = cell_index
+    cell_size = img_width / S
+
+    # Convert the center-x and center-y to absolute coordinates
+    x_center = (bbox[0] + j) * cell_size
+    y_center = (bbox[1] + i) * cell_size
+
+    # Convert width and height to absolute dimensions
+    w = bbox[2] * img_width
+    h = bbox[3] * img_height
+
+    # Convert to top-left coordinates
+    x_top_left = x_center - (w / 2)
+    y_top_left = y_center - (h / 2)
+
     return [x_top_left, y_top_left, w, h]
 
 
@@ -76,7 +87,7 @@ def run_examples_and_create_file(model_path):
 
 
                 img_width, img_height = inputs.shape[2], inputs.shape[3]  # Assuming inputs is a tensor of shape [batch_size, channels, height, width]
-                bbox = convert_to_coco_format(bbox, img_width, img_height)
+                bbox = convert_to_coco_format(bbox, (i,j), img_width, img_height, S)
 
                 #JSON data must match COCO format:
                 # https://cocodataset.org/#format-results
