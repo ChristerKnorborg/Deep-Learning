@@ -312,7 +312,7 @@ def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_ep
             # Print progress within an epoch
             total_batches = len(dataloaders[phase])
 
-            for iteration, (inputs, labels) in enumerate(dataloaders[phase], start=1):
+            for iteration, (inputs, labels, _) in enumerate(dataloaders[phase], start=1):
                 print(
                     f"\rProcessing batch {iteration}/{total_batches}", end="")
 

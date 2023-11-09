@@ -340,7 +340,7 @@ class DataSetCoco(Dataset):
                 'bboxes': bounding_boxes,  # The transformed bounding boxes
             }
 
-        return img, label_tensor
+        return img, label_tensor, img_id
 
     def crop_image(self, img: torch.Tensor, original_annotations, size=None):
 
@@ -652,17 +652,16 @@ def compute_iou(bbox, cell_bbox):
 
 
 # TO ShOW LABELS FORMAT
+'''# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
-coco_data.get_categories()
-# Create an instance of the DataSetCoco class for the TRAIN dataset
-'''coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 
 # Fetch a sample by its index
 index_to_test = 1 # You can change this to any valid index
-img, yolo_targets = coco_data.__getitem__(index_to_test)
+img, yolo_targets, _ = coco_data.__getitem__(index_to_test)
 
 # print image name:
 print("Image name:", coco_data.coco.loadImgs(coco_data.ids[index_to_test])[0]['file_name'])
 print("Bounding Boxes in YOLO format:", yolo_targets)
 
-coco_data.show_image_with_bboxes(index_to_test)'''
+coco_data.show_image_with_bboxes(index_to_test)
+'''
