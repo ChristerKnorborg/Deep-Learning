@@ -30,7 +30,7 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
 
     # Put the model in eval mode and perform a forward pass to get the predictions
     model = Yolo_v1()  # create a new instance of your model class
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
     model.to(DEVICE)  # move model to the intended device
     model.eval()
     with torch.no_grad():
@@ -97,9 +97,11 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
     plt.show()
 
 
-test_image = "data/train2017/person/000000000459.jpg"  # Snowboarder image
+test_image = "data/val2017/person/000000001296.jpg"  # Snowboarder image
+
+#test_image = "data/val2017/person/000000006471.jpg"
 original_image = Image.open(test_image)
-model_path = "models/model_11-01_12_epoch-51_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth"
+model_path = "./models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth"
 
 
-display_predictions(model_path, original_image, confidence_threshold=0.7)
+display_predictions(model_path, original_image, confidence_threshold=0.5)
