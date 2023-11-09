@@ -69,12 +69,12 @@ def run_examples_and_create_file(model_path):
                 # https://cocodataset.org/#format-results
 
                 # category_id is always 0 as we only guess persons
-                data_box = [{
+                data_box = {
                 "image_id": img_id.item(),
                 "category_id": 0,
                 "bbox": bbox,
                 "score": confidence,
-                }]
+                }
 
                 all_data_boxes.append(data_box)
 
