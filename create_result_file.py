@@ -26,6 +26,14 @@ def run_test_examples(model_path):
     model.to(DEVICE)  # move model to the intended device
     model.eval()
 
+     # Freeze the pretained encoder weights
+    for param in model.encoder.parameters():
+            param.requires_grad = False
+
+    # Freeze the fully connected layer weights
+    for param in model.fc.parameters():
+        param.requires_grad = False
+
     for _, (inputs, labels) in enumerate(dataloaders[TEST], start=1):
         outputs = model(inputs)
         predictions = torch.squeeze(outputs, 0)
