@@ -63,7 +63,7 @@ def run_examples_and_create_file(model_path):
     all_FN_class_bad_IOU_bad = 0
 
      # Open the CSV file once before you start the epochs.
-    csv_file = open("training_metrics.csv", "w", newline='')
+    csv_file = open("training_metrics_soren.csv", "w", newline='')
     writer = csv.writer(csv_file)
     writer.writerow(['Epoch', 'Train Loss', 'Validation Loss',
                      'Correct Predictions', 'Localization Errors',
