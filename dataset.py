@@ -264,9 +264,9 @@ class DataSetCoco(Dataset):
 
         ### THIS NEEDS TO BE APPLIED TO MAKE THE ENCODER WORK FOR BOTH TRAINING AND VALIDATION. It makes width and height the same ###
         # Crop the image and adjust bounding boxes accordingly
-        img, bounding_boxes = self.crop_image(img, annotations)
-        img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
-        bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
+        img, bounding_boxes = self.crop_image(img, annotations, size=(512,512))
+        #img, bounding_boxes = self.resize_image(img, bounding_boxes) # Resize to make dataloader work with tensor as all images need to be the same size in batches
+        #bounding_boxes = self.remove_small_bounding_boxes(bounding_boxes) # Remove small bounding boxes
 
         # If training, apply data augmentation
         if self.training:

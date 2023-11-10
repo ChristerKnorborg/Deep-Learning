@@ -15,9 +15,9 @@ def run_examples_and_create_file(model_path):
         VALIDATION: DataSetCoco(DataSetType.VALIDATION, training=False)
     }
 
-    dataset = DataLoader(image_datasets[VALIDATION], shuffle=True)
+    dataset = DataLoader(image_datasets[VALIDATION], shuffle=False, batch_size=64)
 
-    dataloaders = {VALIDATION: dataset}
+    dataloaders = {VALIDATION: dataset} 
 
     dataset_sizes = {len(image_datasets[VALIDATION])}
 
@@ -69,8 +69,11 @@ def run_examples_and_create_file(model_path):
                      'Correct Predictions', 'Localization Errors',
                      'Other Errors',
                      'Background Predictions', 'Total Bounding Boxes', 'TP_class_loca_good', 'FP_class_bad_IOU_good', 'FP_class_good_IOU_bad', 'FP_class_IOU_good', 'FN_class_good_IOU_bad', 'FN_class_bad_IOU_good', 'FN_class_bad_IOU_bad'])
+    
+    total_batches = len(dataloaders[VALIDATION])
 
-    for _, (inputs, labels, img_id) in enumerate(dataloaders[VALIDATION]):
+    for iteration, (inputs, labels, img_id) in enumerate(dataloaders[VALIDATION]):
+        print(f"\rProcessing batch {iteration}/{total_batches}", end="")
         outputs = model(inputs)
 
         # Compute accuracy metrics
@@ -93,16 +96,16 @@ def run_examples_and_create_file(model_path):
 
         # write the most recent losses after each epoch
         csvEpochSave = 1
-        writer.writerow([0, 0, 0,
-                        all_correct, all_localization, all_other,
-                        all_background, all_bounding_boxes, all_TP_class_loca_good, 
-                        all_FP_class_bad_IOU_good, all_FP_class_good_IOU_bad, all_FP_class_IOU_good,
-                          all_FN_class_good_IOU_bad, all_FN_class_bad_IOU_good, all_FN_class_bad_IOU_bad])
 
+    writer.writerow([0, 0, 0,
+                    all_correct, all_localization, all_other,
+                    all_background, all_bounding_boxes, all_TP_class_loca_good, 
+                    all_FP_class_bad_IOU_good, all_FP_class_good_IOU_bad, all_FP_class_IOU_good,
+                        all_FN_class_good_IOU_bad, all_FN_class_bad_IOU_good, all_FN_class_bad_IOU_bad])
     csv_file.close()
 
 
 
 
 
-run_examples_and_create_file("./models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
+run_examples_and_create_file("models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
