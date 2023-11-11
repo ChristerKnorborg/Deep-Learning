@@ -1,6 +1,6 @@
 import csv
 import datetime
-from yolo_v1 import Yolo_v1
+from yolo_network import Yolo_network
 from loss import YOLOLoss
 import torch
 import torch.nn as nn
@@ -12,7 +12,7 @@ import time
 import os
 import copy
 from dataset import TRAIN, VALIDATION
-from yolo_v1 import Yolo_v1
+from yolo_network import Yolo_network
 from model_constants import S, B, DEVICE
 import copy
 import pickle
@@ -216,7 +216,7 @@ def save_model(model_weights, num_epochs, optimizer, scheduler=None, subset_size
     torch.save(model_weights, model_path)
 
 
-def train(model: Yolo_v1, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25, fine_tuning_epochs=0, chosen_train_images=None):
+def train(model: Yolo_network, criterion: YOLOLoss, optimizer, scheduler=None, num_epochs=25, fine_tuning_epochs=0, chosen_train_images=None):
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -416,7 +416,7 @@ def main():  # Encapsulating in main function
 
     print("DEVICE:", DEVICE)
 
-    model = Yolo_v1()
+    model = Yolo_network()
     model = model.to(DEVICE)  # Use GPU if available
 
     criterion = YOLOLoss()  # Loss function

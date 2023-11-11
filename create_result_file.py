@@ -3,7 +3,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from dataset import DataSetCoco, DataSetType, VALIDATION
 from model_constants import S, B, DEVICE
-from yolo_v1 import Yolo_v1
+from yolo_network import Yolo_network
 import json
 
 def convert_to_coco_format(bbox, cell_index, img_width, img_height, S):
@@ -43,7 +43,7 @@ def run_examples_and_create_file(model_path):
 
 
     # Put the model in eval mode and perform a forward pass to get the predictions
-    model = Yolo_v1()  # create a new instance of your model class
+    model = Yolo_network()  # create a new instance of your model class
     model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
     model.to(DEVICE)  # move model to the intended device

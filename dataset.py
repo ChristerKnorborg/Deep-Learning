@@ -67,7 +67,7 @@ class DataSetCoco(Dataset):
             # Fetch all images details from the COCO dataset
             all_images = self.coco.loadImgs(ids=self.coco.getImgIds())
 
-    # Extract the image IDs that match the filenames
+            # Extract the image IDs that match the filenames
             image_ids = [img['id']
                          for img in all_images if img['file_name'] in self.chosen_images]
             chosen_ids = image_ids
