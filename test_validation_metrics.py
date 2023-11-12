@@ -118,12 +118,12 @@ dataloaders = {VALIDATION: dataset}
 
 
 
-model_few_layers = Yolo_netowrk_fewer_layers()
-run_examples_and_create_file(dataloaders, model_few_layers, "models/model_11-01_12_epoch-51_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
+#model_few_layers = Yolo_netowrk_fewer_layers()
+#run_examples_and_create_file(dataloaders, model_few_layers, "models/model_11-01_12_epoch-51_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
+
+#model_final = Yolo_network()
+#run_examples_and_create_file(dataloaders, model_final, "models/model_11-02_07_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
 
 model_final = Yolo_network()
-run_examples_and_create_file(dataloaders, model_final, "models/model_11-02_07_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
-
-model_final = Yolo_network()
-run_examples_and_create_file(dataloaders, model_final ,"models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth")
+run_examples_and_create_file(dataloaders, model_final ,"models/model_11-12_00_epoch-80_LR-0.0001_step-none_gamma-none_subset-30000_batch-64.pth")
 
