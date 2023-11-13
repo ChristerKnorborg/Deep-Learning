@@ -1,24 +1,17 @@
 # Import grid dimension S = 7, Bounding boxes per cell B = 2, and classes C = 1
-from model_constants import S, B
+from model_constants import S
 import copy
 import json
 import os
 from random import random
-import shutil
 from torchvision import transforms
-from typing import Any
 import requests
 import zipfile
 from pycocotools.coco import COCO
-import torchvision.transforms.functional as F
-
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import torch
-
 from torch.utils.data import Dataset
-
 from enum import Enum
 from PIL import Image
 
@@ -47,20 +40,16 @@ class DataSetCoco(Dataset):
         - transform (callable, optional): Optional transform to be applied 
         """
 
-        # ... your initialization code ...
 
         self.img_dir, self.ann_file = datatype.value
         self._ensure_data_exists_or_download()  # Ensure data exists or download it
         self.coco = COCO(self.ann_file)
-        # Move images with persons to the 'person' directory (if not already done)
-        self.move_images_with_persons_to_person_dir
+        self.move_images_with_persons_to_person_dir # Move images with persons to the 'person' directory (if not already done)
 
         self.training = training
 
-        person_category_ids = self.coco.getCatIds(catNms=['person'])
+        person_category_ids = self.coco.getCatIds(catNms=['person']) # Get category IDs for the 'person' class
         self.ids = self.coco.getImgIds(catIds=person_category_ids)
-
-        # self.ids = list(self.coco.imgs.keys())
 
         self.chosen_images = chosen_images
         if self.chosen_images != None:
@@ -417,8 +406,7 @@ class DataSetCoco(Dataset):
 
             processed_annotations.append(new_ann)
 
-        # Continue with your process, using new_img and processed_annotations as needed
-        return new_img, bounding_boxes
+        return new_img, bounding_boxes # Return the cropped image and bounding boxes
 
     def color_image(self, img):
         """
@@ -651,7 +639,7 @@ def compute_iou(bbox, cell_bbox):
     return iou
 
 
-# TO ShOW LABELS FORMAT
+# TO ShOW LABELS FORMAT. UNCOMMENT THIS AND RUN THE CODE BELOW
 '''# Create an instance of the DataSetCoco class for the TRAIN dataset
 coco_data = DataSetCoco(DataSetType.TRAIN, save_augmentation=True, training=True)
 

@@ -28,10 +28,10 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
     # Apply the transformations and add a batch dimension
     image_tensor = transform(original_image).unsqueeze(0).to(DEVICE)
 
-    # Put the model in eval mode and perform a forward pass to get the predictions
-    model = Yolo_network()  # create a new instance of your model class
+    # Put model in eval mode and perform a forward pass to get the predictions
+    model = Yolo_network()  
     model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-    model.to(DEVICE)  # move model to the intended device
+    model.to(DEVICE)  
     model.eval()
     with torch.no_grad():
         predictions = model(image_tensor)
@@ -60,7 +60,7 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
     axarr[1].set_title('Predictions')
     axarr[1].axis('off')
 
-    # Process the predictions
+    # Process predictions
     cell_width = original_image.size[0] / S
     cell_height = original_image.size[1] / S
 
@@ -99,9 +99,8 @@ def display_predictions(model_path, original_image, confidence_threshold=0.5):
 
 test_image = "data/val2017/person/000000001296.jpg"  # Snowboarder image
 
-#test_image = "data/val2017/person/000000006471.jpg"
 original_image = Image.open(test_image)
-model_path = "./models/model_11-04_08_epoch-60_LR-0.0001_step-none_gamma-none_subset-10000_batch-64.pth"
+model_path = "./models/model_11-12_00_epoch-80_LR-0.0001_step-none_gamma-none_subset-30000_batch-64.pth"
 
 
 display_predictions(model_path, original_image, confidence_threshold=0.5)

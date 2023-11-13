@@ -3,19 +3,14 @@ import datetime
 from yolo_network import Yolo_network
 from loss import YOLOLoss
 import torch
-import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-import numpy as np
 import matplotlib.pyplot as plt
-import time
 import os
 import copy
 from dataset import TRAIN, VALIDATION
 from yolo_network import Yolo_network
-from model_constants import S, B, DEVICE
+from model_constants import S, DEVICE
 import copy
-import pickle
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from dataset import DataSetCoco, DataSetType
@@ -78,7 +73,6 @@ def compute_accuracy(preds, labels):
 
     correct = 0
     localization = 0
-    # This variable is not used in your original function; consider its purpose.
     other = 0
     otherbighalf = 0
     background = 0
@@ -100,7 +94,6 @@ def compute_accuracy(preds, labels):
                 label_person_prob = labels[b, i, j, 0].item()
 
                 # Only consider cells where the label indicates there is an object
-
                 # if the label is 1. IE person class in grid and the prediction class is > 0.5 and localization IOU > 0.5
                 if label_person_prob == 1:
                     iou1 = bbox_iou(pred_bbox1, label_bbox)
@@ -272,13 +265,11 @@ def train(model: Yolo_network, criterion: YOLOLoss, optimizer, scheduler=None, n
         # Check if it's time to start fine-tuning
         if epoch == start_fine_tuning_epoch:
             print("Starting fine-tuning phase.")
-            # Unfreeze all the layers for fine-tuning, you can also selectively unfreeze layers
+            # Unfreeze all the layers for fine-tuning
             for param in model.parameters():
                 param.requires_grad = True
 
-            # Here, you adjust the learning rate for fine-tuning. It's usually much lower than initial training.
-            # this value should be adjusted based on your observations during training
-            optimizer.param_groups[0]['lr'] = 0.0001
+            optimizer.param_groups[0]['lr'] = 0.0001 # adjust the learning rate for fine-tuning
 
         for phase in [TRAIN, VALIDATION]:
             if phase == TRAIN:
@@ -346,9 +337,7 @@ def train(model: Yolo_network, criterion: YOLOLoss, optimizer, scheduler=None, n
                         loss.backward()
                         optimizer.step()
 
-                # statistics
-                # * inputs.size(0) is removed because YOLOLoss already sums over the batch
-                running_loss += loss.item()
+                running_loss += loss.item() # * inputs.size(0) is removed because YOLOLoss already sums over the batch
 
             epoch_loss = running_loss / dataset_sizes[phase]
 
@@ -389,7 +378,7 @@ def train(model: Yolo_network, criterion: YOLOLoss, optimizer, scheduler=None, n
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-        # write the most recent losses after each epoch
+            # write the most recent losses after each epoch
             csvEpochSave = 1
             if epoch % csvEpochSave == 0 and phase == VALIDATION:
 
@@ -412,7 +401,7 @@ def train(model: Yolo_network, criterion: YOLOLoss, optimizer, scheduler=None, n
     plot_training_results(losses, metrics, num_epochs)
 
 
-def main():  # Encapsulating in main function
+def main():
 
     print("DEVICE:", DEVICE)
 
@@ -436,24 +425,18 @@ def main():  # Encapsulating in main function
                                "000000298933.jpg",
                                "000000336464.jpg",
                                "000000025041.jpg"]
-    # Observe that all parameters are being optimized
-    # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
-    # following the parameters of the paper
+
     optimizer = optim.Adam(model.parameters())
-    # Decay LR by a factor of 0.1 every 7 epochs
-    # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.25)
 
     # Start training process
     model = train(
-        model, criterion, optimizer,  # scheduler=exp_lr_scheduler,
+        model, criterion, optimizer, 
         num_epochs=60, fine_tuning_epochs=20,
         # chosen_train_images=train_images_to_include
     )
 
-    #
 
 
-# The following is the standard boilerplate that calls the main() function.
 if __name__ == '__main__':
     main()

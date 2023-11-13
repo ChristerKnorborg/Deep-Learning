@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
-import numpy as np
 import torch.nn.init as init
 from torchvision.models.resnet import ResNet18_Weights
 
@@ -18,18 +17,12 @@ class Yolo_network(nn.Module):
         # Use ResNet-18 as the encoder
         resnet_layers = models.resnet18(weights=ResNet18_Weights.DEFAULT)
 
-        # resnet_layers = models.mobilenet_v2(pretrained = True) # Use MobileNetV2 as the encoder
         # Remove removes fc layer to get encoder only
         self.encoder = torch.nn.Sequential(
             *(list(resnet_layers.children())[:-1]))
 
-        # Print the encoder architecture
-        # print("Encoder: \n")
-        # print(self.encoder)
-
         # From the paper: S * S * (B * 5), where 5 is the number of parameters in each bounding box (confidence, x, y, w, h)
         prediction_tensor = S**2 * (B*5)  # 7*7*(2*5) = 490
-
 
 
         self.fc = nn.Sequential(
@@ -98,14 +91,9 @@ class Yolo_netowrk_fewer_layers(nn.Module):
         # Use ResNet-18 as the encoder
         resnet_layers = models.resnet18(weights=ResNet18_Weights.DEFAULT)
 
-        # resnet_layers = models.mobilenet_v2(pretrained = True) # Use MobileNetV2 as the encoder
         # Remove removes fc layer to get encoder only
         self.encoder = torch.nn.Sequential(
             *(list(resnet_layers.children())[:-1]))
-
-        # Print the encoder architecture
-        # print("Encoder: \n")
-        # print(self.encoder)
 
         # From the paper: S * S * (B * 5), where 5 is the number of parameters in each bounding box (confidence, x, y, w, h)
         prediction_tensor = S**2 * (B*5)  # 7*7*(2*5) = 490
@@ -114,12 +102,6 @@ class Yolo_netowrk_fewer_layers(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Flatten(),
-            #nn.BatchNorm1d(512),
-            #nn.LeakyReLU(0.1),  # 0.1 is used in the paper
-            #self.xavier_linear(512, 512),
-            #nn.BatchNorm1d(512),
-            #nn.LeakyReLU(0.1),  # 0.1 is used in the paper
-            #self.xavier_linear(512, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.1),  # 0.1 is used in the paper
             self.xavier_linear(512, prediction_tensor),

@@ -1,2 +1,0 @@
-Epoch,Train Loss,Validation Loss,Correct Predictions,Localization Errors,Other Errors,Background Predictions,Total Bounding Boxes,TP_class_loca_good,FP_class_bad_IOU_good,FP_class_good_IOU_bad,FP_class_IOU_good,FN_class_good_IOU_bad,FN_class_bad_IOU_good,FN_class_bad_IOU_bad
-0,0,0,126,167,1827,96,7822,126,0,247,0,263,385,7048

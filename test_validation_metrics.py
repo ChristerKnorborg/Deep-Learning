@@ -16,10 +16,10 @@ def run_examples_and_create_file(dataloader, model_type, model_path):
 
 
     # Put the model in eval mode and perform a forward pass to get the predictions
-    model = model_type  # create a new instance of your model class
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model = model_type  
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))) # CPU is used because Christer does not have a GPU
 
-    model.to(DEVICE)  # move model to the intended device
+    model.to(DEVICE)  
     model.eval()
 
      # Freeze the pretained encoder weights
